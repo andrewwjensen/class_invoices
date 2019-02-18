@@ -1,3 +1,5 @@
+import os
+
 import wx
 
 import ui.DemoPanel
@@ -13,7 +15,7 @@ class MainFrame(wx.Frame):
 
         # Build the menu bar
         menu_bar = wx.MenuBar()
-        menu_bar.Append(FileMenu(), "&File")
+        menu_bar.Append(FileMenu(self), "&File")
         self.SetMenuBar(menu_bar)
 
         # Add the Widget Panel
@@ -24,11 +26,3 @@ class MainFrame(wx.Frame):
         self.SetStatusText("Ready to open new CSV file")
 
         self.Fit()
-
-    def on_open(self, event=None):
-        """Open a new CSV file."""
-        print(event)
-
-    def on_quit(self, event=None):
-        """Exit application."""
-        self.parent.Close()

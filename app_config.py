@@ -1,6 +1,17 @@
 from PyQt5.QtCore import QSettings
 
+PUBLISHER_Name = 'AndyJensen'
+APP_NAME = 'ClassInvoices'
+
+DEFAULT_DIRECTORY_KEY = 'default_dir'
 RECENT_FILES_KEY = 'recent'
+
+DEFAULTS = {
+    RECENT_FILES_KEY: [],
+    DEFAULT_DIRECTORY_KEY: '',
+}
+
+conf = None
 
 
 class Config(object):
@@ -11,7 +22,9 @@ class Config(object):
         self.create_config()
 
     def create_config(self):
-        self.settings.setValue(RECENT_FILES_KEY, ["file1", "file2"])
+        for k, v in DEFAULTS.items():
+            if self.get(k) is None:
+                self.settings.setValue(k, v)
         self.save_config()
 
     def save_config(self):
@@ -19,11 +32,14 @@ class Config(object):
         del self.settings
         self.settings = QSettings(self.publisher, self.application)
 
-    def set_config(self, key, value):
+    def set(self, key, value):
         self.settings.setValue(key, value)
         self.save_config()
 
-    def get_config(self, key, typ):
-        value = self.settings.value(key, type=typ)
-        print("andy value = " + str(value))
+    def get(self, key):
+        value = self.settings.value(key)
         return value
+
+
+if conf is None:
+    conf = Config(PUBLISHER_Name, APP_NAME)

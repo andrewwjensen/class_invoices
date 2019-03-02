@@ -155,6 +155,7 @@ class DataPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.families = {}
         self.parent = parent
 
+        # Create control lists for student list and for class fee schedule
         self.student_list = AutoWidthListCtrl(self, wx.ID_ANY,
                                               style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
                                               size=(1, 150))
@@ -162,6 +163,7 @@ class DataPanel(wx.Panel, listmix.ColumnSorterMixin):
                                           style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
                                           size=(1, 150))
 
+        # Set up column sorter mixin, which sorts table when column headers are clicked on
         self.itemDataMap = {}
         listmix.ColumnSorterMixin.__init__(self, len(DISPLAY_COLUMNS))
         self.imageList = wx.ImageList(16, 16)
@@ -169,12 +171,17 @@ class DataPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.sm_dn = self.imageList.Add(images.SmallDnArrow.GetBitmap())
         self.student_list.SetImageList(self.imageList, wx.IMAGE_LIST_SMALL)
 
+        # Create buttons
         self.button_print = wx.Button(self, wx.ID_ANY, "Print Master List...")
         self.Bind(wx.EVT_BUTTON, self.on_print, self.button_print)
         self.button_print.Disable()
         self.button_generate = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
         self.Bind(wx.EVT_BUTTON, self.on_generate, self.button_generate)
         self.button_generate.Disable()
+        #
+        self.button_import = wx.Button(self, wx.ID_ANY, "Import Class Fees...")
+        self.Bind(wx.EVT_BUTTON, self.on_import, self.button_import)
+        self.button_import.Disable()
 
         self.__do_layout()
 
@@ -320,6 +327,9 @@ class DataPanel(wx.Panel, listmix.ColumnSorterMixin):
         print('generating...')
         for family_id, family in self.families.items():
             self.create_invoice(family)
+
+    def on_import(self, event=None):
+        print('importing...')
 
     def create_invoice(self, family):
         parents = get_parents(family)

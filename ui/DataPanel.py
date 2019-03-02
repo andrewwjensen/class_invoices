@@ -1,6 +1,10 @@
+import datetime
+
 import wx
 from wx.lib.printout import PrintTable
 import wx.lib.mixins.listctrl as listmix
+
+import images
 
 NONCONSECUTIVE_COL = 'is_nonconsecutive'
 NEW_STUDENT_COL = 'is_new_student'
@@ -32,7 +36,7 @@ COLUMN_MAP = {
     GRADE_COL: 'Grade',
     NOTES_COL: 'Notes',
     NEW_STUDENT_COL: 'New?',
-    NONCONSECUTIVE_COL: 'Consecutive?',
+    NONCONSECUTIVE_COL: 'Nonconsecutive?',
     CLASSES_COL: 'Classes',
 }
 
@@ -49,24 +53,41 @@ DISPLAY_COLUMNS = [
 
 
 def parse_bool(bool_str):
-    if bool_str is None or type(bool_str) != str:
+    if bool_str is None:
         return False
     val = bool_str.strip().lower()
     return val not in ['', 'no', 'n', 'false', 'f', '0']
 
 
-TRANSFORMS = {
-    NONCONSECUTIVE_COL: lambda person: (person[MEMBER_TYPE_COL].strip().lower() == 'student'
-                                        and not parse_bool(person[NONCONSECUTIVE_COL])),
-    CLASSES_COL: lambda person: [t.strip() for t in person[CLASSES_COL].split(',')],
+def parse_date(date_str):
+    try:
+        return datetime.datetime.strptime(date_str, '%m/%d/%Y %H:%M')
+    except ValueError:
+        return date_str
+
+
+PARSE_TRANSFORMS = {
+    NEW_STUDENT_COL: lambda value: parse_bool(value),
+    NONCONSECUTIVE_COL: lambda value: parse_bool(value),
+    CLASSES_COL: lambda value: [t.strip() for t in value.split(',')],
+    REGISTERED_COL: lambda value: parse_date(value),
+    BIRTHDAY_COL: lambda value: parse_date(value),
+}
+
+DISPLAY_TRANSFORMS = {
+    CLASSES_COL: lambda value: ', '.join(value),
 }
 
 
-def transform(col_name, person):
+# DISPLAY_COLUMNS = COLUMN_MAP.keys()
+
+
+def transform(col_name, value, transforms):
     try:
-        return TRANSFORMS[col_name](person)
+        transform_func = transforms[col_name]
     except KeyError:
-        return person[col_name]
+        return value
+    return transform_func(value)
 
 
 class AutoWidthListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
@@ -91,12 +112,36 @@ def validate_person(person):
                            "'. Valid parent types: " + ', '.join(VALID_GENDERS))
 
 
-def filter_person(person):
+def display_filter(person):
     return person[MEMBER_TYPE_COL] == 'student'
 
 
-class DataPanel(wx.Panel):
+def validate_header_row(row):
+    missing_columns = []
+    for column in DISPLAY_COLUMNS:
+        if column not in row:
+            missing_columns.append(column)
+    if missing_columns:
+        raise RuntimeError("Missing required columns: "
+                           + ', '.join(missing_columns))
+
+
+def get_parents(family):
+    return [person for person in family if person[MEMBER_TYPE_COL] == 'parent']
+
+
+def get_students(family):
+    return [person for person in family if person[MEMBER_TYPE_COL] != 'parent']
+
+
+class DataPanel(wx.Panel, listmix.ColumnSorterMixin):
     """This Panel holds the main application data, a table of CSV values."""
+
+    def GetListCtrl(self):
+        return self.student_list
+
+    def GetSortImages(self):
+        return self.sm_dn, self.sm_up
 
     def __init__(self, parent, my_id, *args, **kwargs):
         """Create the main panel."""
@@ -104,49 +149,85 @@ class DataPanel(wx.Panel):
 
         self.headers = []
         self.rows = []
+        self.classes = set()
         self.column_name_to_idx = {}
         self.column_idx_to_name = {}
         self.families = {}
         self.parent = parent
 
-        self.person_list = AutoWidthListCtrl(self, wx.ID_ANY,
-                                             style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
-                                             size=(1, 150))
+        self.student_list = AutoWidthListCtrl(self, wx.ID_ANY,
+                                              style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
+                                              size=(1, 150))
+        self.fee_list = AutoWidthListCtrl(self, wx.ID_ANY,
+                                          style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
+                                          size=(1, 150))
 
-        self.button_print = wx.Button(self, wx.ID_ANY, "Print...")
-        self.refresh()
+        self.itemDataMap = {}
+        listmix.ColumnSorterMixin.__init__(self, len(DISPLAY_COLUMNS))
+        self.imageList = wx.ImageList(16, 16)
+        self.sm_up = self.imageList.Add(images.SmallUpArrow.GetBitmap())
+        self.sm_dn = self.imageList.Add(images.SmallDnArrow.GetBitmap())
+        self.student_list.SetImageList(self.imageList, wx.IMAGE_LIST_SMALL)
+
+        self.button_print = wx.Button(self, wx.ID_ANY, "Print Master List...")
+        self.Bind(wx.EVT_BUTTON, self.on_print, self.button_print)
+        self.button_print.Disable()
+        self.button_generate = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
+        self.Bind(wx.EVT_BUTTON, self.on_generate, self.button_generate)
+        self.button_generate.Disable()
+
         self.__do_layout()
 
     def __do_layout(self):
+        box_data = wx.BoxSizer(wx.HORIZONTAL)
+
+        box_student_table = wx.BoxSizer(wx.VERTICAL)
+        box_student_table.Add(self.student_list, 1, wx.EXPAND | wx.ALL, 5)
+        box_data.Add(box_student_table, 2, wx.EXPAND)
+
+        box_fee_table = wx.BoxSizer(wx.VERTICAL)
+        box_fee_table.Add(self.fee_list, 1, wx.EXPAND | wx.ALL, 5)
+        box_data.Add(box_fee_table, 1, wx.EXPAND)
+
+        box_buttons = wx.BoxSizer(wx.HORIZONTAL)
+        box_buttons.Add(self.button_print, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+        box_buttons.Add(self.button_generate, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
 
         box_outer = wx.BoxSizer(wx.VERTICAL)
-        box_table = wx.BoxSizer(wx.VERTICAL)
-        box_buttons = wx.BoxSizer(wx.HORIZONTAL)
-
-        box_table.Add(self.person_list, 1, wx.EXPAND)
-
-        box_buttons.Add(self.button_print, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
-
-        box_outer.Add(box_table, 1, wx.EXPAND)
+        box_outer.Add(box_data, 1, wx.EXPAND)
         box_outer.Add(box_buttons, 0, wx.EXPAND)
-        self.SetAutoLayout(1)
+
+        self.SetAutoLayout(True)
         self.SetSizer(box_outer)
         box_outer.Fit(self)
         box_outer.SetSizeHints(self)
 
         self.Layout()
 
-        self.Bind(wx.EVT_BUTTON, self.on_print, self.button_print)
-
     def set_data(self, data):
         self.clear_data()
+        self.student_list.DeleteAllItems()
+        self.student_list.DeleteAllColumns()
+        # For ColumnSorterMixin data
+        self.itemDataMap = {}
+        row_num = 0
         try:
             for row in data:
                 if self.headers is None:
                     # This is the first row, map columns
                     self.process_header_row(row)
                 else:
-                    self.process_data_row(row)
+                    row_num = self.process_data_row(row_num, row)
+            if len(self.rows) > 0:
+                self.button_print.Enable()
+                self.button_generate.Enable()
+
+            # Update ColumnSorterMixin column count
+            self.SetColumnCount(len(self.headers))
+            self.SortListItems(1)
+
+            self.process_classes()
+
         except RuntimeError as e:
             self.clear_data()
             dlg = wx.MessageDialog(self, str(e), "Warning", wx.OK | wx.CANCEL)
@@ -156,7 +237,10 @@ class DataPanel(wx.Panel):
     def clear_data(self):
         self.headers = None
         self.rows = []
+        self.classes = set()
         self.families = {}
+        self.button_print.Disable()
+        self.button_generate.Disable()
 
     def process_header_row(self, row):
         self.column_name_to_idx = {}
@@ -165,61 +249,59 @@ class DataPanel(wx.Panel):
         for n, header in enumerate(row):
             self.column_idx_to_name[n] = header
             self.column_name_to_idx[header] = n
-        self.validate_header_row(row)
-        for header in DISPLAY_COLUMNS:
-            display_row.append(COLUMN_MAP[row[self.column_name_to_idx[header]]])
+        validate_header_row(row)
+        for n, header in enumerate(DISPLAY_COLUMNS):
+            display_header = COLUMN_MAP[row[self.column_name_to_idx[header]]]
+            self.student_list.InsertColumn(n, display_header)
+            display_row.append(display_header)
         self.headers = display_row
 
-    def validate_header_row(self, row):
-        missing_columns = []
-        for column in DISPLAY_COLUMNS:
-            if column not in row:
-                missing_columns.append(column)
-        if missing_columns:
-            raise RuntimeError("Missing required columns: "
-                               + ', '.join(missing_columns))
-
-    def process_data_row(self, row):
+    def process_data_row(self, row_num, row):
         display_row = []
         person = self.create_person(row)
         self.add_to_family(person)
-        if filter_person(person):
-            for n, value in enumerate(row):
-                col_name = self.column_idx_to_name[n]
-                if col_name in DISPLAY_COLUMNS:
-                    display_row.append(transform(col_name, person))
+        for class_name in person[CLASSES_COL]:
+            self.classes.add(class_name)
+        if display_filter(person):
+            for c, column in enumerate(DISPLAY_COLUMNS):
+                col_value = transform(column, person[column], DISPLAY_TRANSFORMS)
+                if c == 0:
+                    self.student_list.InsertItem(row_num, col_value)
+                else:
+                    self.student_list.SetItem(row_num, c, col_value)
+                self.student_list.SetColumnWidth(c, wx.LIST_AUTOSIZE)
+                display_row.append(col_value)
             self.rows.append(display_row)
+            self.itemDataMap[row_num] = display_row
+            self.student_list.SetItemData(row_num, row_num)
+            row_num += 1
+        return row_num
 
     def add_to_family(self, person):
         family_id = person[FAMILY_ID_COL]
         try:
+            # print('adding to family {famid}: {person}'.format(famid=family_id, person=person))
             self.families[family_id].append(person)
         except KeyError:
+            # print('creating family {famid}: {person}'.format(famid=family_id, person=person))
             self.families[family_id] = [person]
 
     def create_person(self, row):
         person = {}
         for n, column in enumerate(row):
-            person[self.column_idx_to_name[n]] = column
+            col_name = self.column_idx_to_name[n]
+            person[col_name] = column
+        for col_name, value in person.items():
+            person[col_name] = transform(col_name, value, PARSE_TRANSFORMS)
         validate_person(person)
         return person
 
-    def refresh(self):
-        self.person_list.DeleteAllItems()
-        self.person_list.DeleteAllColumns()
-
-        for n, col in enumerate(self.headers):
-            self.person_list.InsertColumn(n, col)
-
-        for r, row in enumerate(self.rows):
-            # print("row " + str(n) + ": " + str(row))
-            for c, col in enumerate(row):
-                if c == 0:
-                    self.person_list.InsertItem(r, str(col))
-                else:
-                    self.person_list.SetItem(r, c, str(col))
-
-        # self.person_list.SortItems()
+    def process_classes(self):
+        self.fee_list.InsertColumn(0, 'Class')
+        self.fee_list.InsertColumn(1, 'Teacher')
+        self.fee_list.InsertColumn(2, 'Fee')
+        for n, class_name in enumerate(sorted(self.classes)):
+            self.fee_list.InsertItem(n, class_name)
 
     def on_print(self, event=None):
         prt = PrintTable(self.parent)
@@ -233,3 +315,18 @@ class DataPanel(wx.Panel):
         prt.SetFooter("Page No", colour=wx.Colour('RED'), type="Num")
         prt.SetRowSpacing(10, 10)
         prt.Print()
+
+    def on_generate(self, event=None):
+        print('generating...')
+        for family_id, family in self.families.items():
+            self.create_invoice(family)
+
+    def create_invoice(self, family):
+        parents = get_parents(family)
+        students = get_students(family)
+        print('======================')
+        for parent in parents:
+            print('{:30}  {}'.format(
+                parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL], parent[EMAIL_COL]))
+        for student in students:
+            print('  {:28}'.format(student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]))

@@ -50,7 +50,6 @@ class FileMenu(wx.Menu):
                 for row in reader:
                     rows.append(row)
             self.data_panel.set_data(rows)
-            self.data_panel.refresh()
         file_dialog.Destroy()
 
     def on_quit(self, event=None):

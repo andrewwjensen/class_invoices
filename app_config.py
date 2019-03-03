@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QSettings
+# from PyQt5.QtCore import QSettings
 
 PUBLISHER_Name = 'AndyJensen'
 APP_NAME = 'ClassInvoices'
@@ -14,11 +14,26 @@ DEFAULTS = {
 conf = None
 
 
+class MockSettings(object):
+    def __init__(self):
+        self.settings = {}
+
+    def setValue(self, k, v):
+        self.settings[k] = v
+
+    def value(self, k):
+        try:
+            return self.settings[k]
+        except KeyError:
+            return None
+
+
 class Config(object):
     def __init__(self, publisher, application):
         self.publisher = publisher
         self.application = application
-        self.settings = QSettings(self.publisher, self.application)
+        # self.settings = QSettings(self.publisher, self.application)
+        self.settings = MockSettings()
         self.create_config()
 
     def create_config(self):
@@ -29,8 +44,9 @@ class Config(object):
 
     def save_config(self):
         # This will write the setting to the platform specific storage.
-        del self.settings
-        self.settings = QSettings(self.publisher, self.application)
+        # del self.settings
+        # self.settings = QSettings(self.publisher, self.application)
+        pass
 
     def set(self, key, value):
         self.settings.setValue(key, value)

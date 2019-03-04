@@ -23,12 +23,6 @@ class FileMenu(wx.Menu):
         # --------------------
         self.AppendSeparator()
 
-        item = self.Append(wx.ID_PRINT, "&Print...\tCtrl-P", "Print table")
-        self.Bind(wx.EVT_MENU, data_panel.on_print, item)
-
-        # --------------------
-        self.AppendSeparator()
-
         item = self.Append(wx.ID_EXIT, "E&xit\tCtrl-Q", "Close this application")
         self.Bind(wx.EVT_MENU, self.on_quit, item)
 

@@ -9,8 +9,8 @@ def main():
     frame = MainFrame(None,
                       title=app_config.APP_NAME,
                       size=(500, 400))
-    frame.SetMinSize(size=(400, 200))
     frame.Maximize()
+    frame.set_splitter_width()
     frame.Show()
     app.MainLoop()
 

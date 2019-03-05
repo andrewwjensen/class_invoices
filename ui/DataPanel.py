@@ -202,7 +202,10 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
 
     def SetItem(self, row, col, value):
         self.list_ctrl.SetItem(row, col, value)
-        self.itemDataMap[row].append(value)
+        if row in self.itemDataMap and col < len(self.itemDataMap[row]):
+            self.itemDataMap[row][col] = value
+        else:
+            self.itemDataMap[row].append(value)
 
     def SetColumnWidth(self, col, sz):
         self.list_ctrl.SetColumnWidth(col, sz)
@@ -338,7 +341,7 @@ class DataPanel(wx.Panel):
                     self.student_panel.InsertItem(row_num, col_value)
                 else:
                     self.student_panel.SetItem(row_num, c, col_value)
-                self.student_panel.SetColumnWidth(c, wx.LIST_AUTOSIZE)
+                self.student_panel.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)
             row_num += 1
         return row_num
 
@@ -367,10 +370,10 @@ class DataPanel(wx.Panel):
         self.fee_panel.InsertColumn(2, 'Fee')
         for n, class_name in enumerate(sorted(self.classes)):
             self.fee_panel.InsertItem(n, class_name)
-            self.fee_panel.SetColumnWidth(0, wx.LIST_AUTOSIZE)
             # Add blank data values for the 2nd and 3rd columns
             self.fee_panel.SetItem(n, 1, '')
             self.fee_panel.SetItem(n, 2, '')
+        self.fee_panel.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
         # Update ColumnSorterMixin column count
         self.fee_panel.SetColumnCount(3)
         self.fee_panel.SortListItems(0)
@@ -396,7 +399,6 @@ class DataPanel(wx.Panel):
                 for row in reader:
                     rows.append(row)
             self.process_fee_schedule_file(rows)
-            # print(doc)
         file_dialog.Destroy()
 
     def create_invoice(self, family):
@@ -412,12 +414,16 @@ class DataPanel(wx.Panel):
     def process_fee_schedule_file(self, fee_schedule_rows):
         lookup = {entry[0]: entry for entry in fee_schedule_rows}
         missing_classes = []
-        for class_name in self.classes:
+        for n, class_name in enumerate(self.classes):
             try:
                 entry = lookup[class_name]
-                print(entry)
+                self.fee_panel.SetItem(n, 1, entry[1])
+                self.fee_panel.SetItem(n, 2, entry[2])
             except KeyError:
                 missing_classes.append(class_name)
+        self.fee_panel.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
+        self.fee_panel.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
+        self.fee_panel.Refresh()
         if missing_classes:
             msg = 'Missing classes:\n  ' + '\n  '.join(missing_classes)
             dlg = wx.MessageDialog(self, msg, "Error", wx.OK)

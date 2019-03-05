@@ -224,7 +224,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
 
 def pad_str(s, n):
     s += ' '
-    return s + '.' * (n - len(s))
+    return s + '_' * (n - len(s))
 
 
 class DataPanel(wx.Panel):
@@ -458,8 +458,8 @@ class DataPanel(wx.Panel):
             print('{:30}  {}'.format(
                 parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL], parent[EMAIL_COL]))
         print()
-        max_class_width = max([len(s) for s in self.classes])
-        max_teacher_width = max([len(fee[0]) for k, fee in self.class_to_fee_map.items()])
+        max_class_width = max([len(s) for s in self.classes]) + 2
+        max_teacher_width = max([len(fee[0]) for k, fee in self.class_to_fee_map.items()]) + 2
         teachers = {}
         for student in students:
             print('{:28}'.format(student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]))

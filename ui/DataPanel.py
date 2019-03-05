@@ -1,6 +1,8 @@
 import csv
 import datetime
 import os
+import re
+from decimal import Decimal
 
 import wx
 import wx.lib.mixins.listctrl as listmix
@@ -114,13 +116,11 @@ class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin, lis
         wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         listmix.TextEditMixin.__init__(self)
-        print(editable_columns)
         self.editable_columns = editable_columns
         if editable_columns is None:
             self.editable_columns = []
 
     def OpenEditor(self, col, row):
-        print(col, self.editable_columns)
         if col in self.editable_columns:
             listmix.TextEditMixin.OpenEditor(self, col, row)
 
@@ -152,6 +152,14 @@ def validate_header_row(row):
     if missing_columns:
         raise RuntimeError("Missing required columns: "
                            + ', '.join(missing_columns))
+
+
+def validate_currency(fee_str):
+    if fee_str is not None:
+        m = re.match(r'^ *\$? *(\d+(?:[.]\d{2})?) *$', fee_str)
+        if m:
+            return Decimal(m.group(1))
+    return None
 
 
 def get_parents(family):
@@ -201,7 +209,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.list_ctrl.SetItemData(row, row)
 
     def SetItem(self, row, col, value):
-        self.list_ctrl.SetItem(row, col, value)
+        self.list_ctrl.SetItem(row, col, str(value))
         if row in self.itemDataMap and col < len(self.itemDataMap[row]):
             self.itemDataMap[row][col] = value
         else:
@@ -214,8 +222,24 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.list_ctrl.InsertColumn(col, info)
 
 
+def pad_str(s, n):
+    s += ' '
+    return s + '.' * (n - len(s))
+
+
 class DataPanel(wx.Panel):
     """This Panel holds the main application data, a table of CSV values."""
+
+    def clear_data(self):
+        self.headers = []
+        self.classes = set()
+        self.families = {}
+        self.student_panel.clear()
+        self.fee_panel.clear()
+        self.class_to_fee_map = {}
+        self.button_generate.Disable()
+        self.button_import.Disable()
+        self.button_save.Disable()
 
     def __init__(self, parent, my_id, *args, **kwargs):
         """Create the main panel."""
@@ -227,6 +251,7 @@ class DataPanel(wx.Panel):
         self.column_idx_to_name = {}
         self.families = {}
         self.parent = parent
+        self.class_to_fee_map = {}
 
         #######################################################################
         # Create splitter window and its two horizontal panels
@@ -257,18 +282,24 @@ class DataPanel(wx.Panel):
         self.fee_panel.SetMinSize((200, 100))
 
         # Create fee schedule panel buttons
-        self.button_import = wx.Button(self.fee_panel, wx.ID_ANY, "Import Class Fees...")
+        self.button_import = wx.Button(self.fee_panel, wx.ID_ANY, "Import Fee Schedule...")
         self.Bind(wx.EVT_BUTTON, self.on_import, self.button_import)
         self.button_import.Disable()
 
+        self.button_save = wx.Button(self.fee_panel, wx.ID_ANY, "Save Fee Schedule...")
+        self.Bind(wx.EVT_BUTTON, self.on_save, self.button_save)
+        self.button_save.Disable()
+
         fee_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
         fee_buttons_sizer.Add(self.button_import, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+        fee_buttons_sizer.Add(self.button_save, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
 
         fee_table_sizer = wx.BoxSizer(wx.VERTICAL)
         fee_table_sizer.Add(self.fee_panel.GetListCtrl(), 1, wx.EXPAND, 0)
         fee_table_sizer.Add(fee_buttons_sizer, 0, wx.EXPAND)
         self.fee_panel.SetSizer(fee_table_sizer)
 
+        #######################################################################
         # Add the splitter to a sizer and do the layout to pull everything together
         box_outer = wx.BoxSizer(wx.VERTICAL)
         box_outer.Add(self.splitter, 1, wx.EXPAND)
@@ -276,23 +307,31 @@ class DataPanel(wx.Panel):
         self.SetSizer(box_outer)
         box_outer.SetSizeHints(self)
         self.Layout()
-        self.Bind(wx.EVT_KEY_DOWN, self.on_keypress)
+        # TODO: remove these
+        self.load_students('/Users/ajensen/Downloads/members-list.csv')
+        self.load_fee_schedule('/Users/ajensen/Downloads/Fee Schedule.csv')
 
-    def on_keypress(self, event=None):
-        print("event:", event)
+    def load_students(self, path):
+        rows = []
+        with open(path, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                rows.append(row)
+        self.set_data(rows)
 
     def set_data(self, data):
         self.clear_data()
         row_num = 0
         try:
             for row in data:
-                if self.headers is None:
+                if not self.headers:
                     # This is the first row, map columns
                     self.process_header_row(row)
                 else:
                     row_num = self.process_data_row(row_num, row)
             self.button_generate.Enable()
             self.button_import.Enable()
+            self.button_save.Enable()
 
             # Update ColumnSorterMixin column count
             self.student_panel.SetColumnCount(len(self.headers))
@@ -305,15 +344,6 @@ class DataPanel(wx.Panel):
             dlg = wx.MessageDialog(self, str(e), "Warning", wx.OK | wx.CANCEL)
             dlg.ShowModal()
             dlg.Destroy()
-
-    def clear_data(self):
-        self.headers = None
-        self.classes = set()
-        self.families = {}
-        self.button_generate.Disable()
-        self.button_import.Disable()
-        self.student_panel.clear()
-        self.fee_panel.clear()
 
     def process_header_row(self, row):
         self.column_name_to_idx = {}
@@ -348,10 +378,8 @@ class DataPanel(wx.Panel):
     def add_to_family(self, person):
         family_id = person[FAMILY_ID_COL]
         try:
-            # print('adding to family {famid}: {person}'.format(famid=family_id, person=person))
             self.families[family_id].append(person)
         except KeyError:
-            # print('creating family {famid}: {person}'.format(famid=family_id, person=person))
             self.families[family_id] = [person]
 
     def create_person(self, row):
@@ -373,6 +401,7 @@ class DataPanel(wx.Panel):
             # Add blank data values for the 2nd and 3rd columns
             self.fee_panel.SetItem(n, 1, '')
             self.fee_panel.SetItem(n, 2, '')
+            self.class_to_fee_map[class_name] = ['', '']
         self.fee_panel.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
         # Update ColumnSorterMixin column count
         self.fee_panel.SetColumnCount(3)
@@ -382,10 +411,28 @@ class DataPanel(wx.Panel):
         for family_id, family in self.families.items():
             self.create_invoice(family)
 
+    def on_save(self, event=None):
+        dirname = ''
+        file_dialog = wx.FileDialog(parent=self.parent,
+                                    message="Save fee schedule",
+                                    defaultDir=dirname,
+                                    defaultFile="",
+                                    wildcard="*.csv",
+                                    style=wx.FD_SAVE)
+        if file_dialog.ShowModal() == wx.ID_OK:
+            filename = file_dialog.GetFilename()
+            dirname = file_dialog.GetDirectory()
+            with open(os.path.join(dirname, filename), 'w') as f:
+                csv_writer = csv.writer(f)
+                for class_name in sorted(self.class_to_fee_map):
+                    row = [class_name] + self.class_to_fee_map[class_name]
+                    csv_writer.writerow(row)
+        file_dialog.Destroy()
+
     def on_import(self, event=None):
         dirname = ''
         file_dialog = wx.FileDialog(parent=self.parent,
-                                    message="Choose a fee schedule file",
+                                    message="Choose a fee schedule CSV file",
                                     defaultDir=dirname,
                                     defaultFile="",
                                     wildcard="*.csv",
@@ -393,13 +440,15 @@ class DataPanel(wx.Panel):
         if file_dialog.ShowModal() == wx.ID_OK:
             filename = file_dialog.GetFilename()
             dirname = file_dialog.GetDirectory()
-            rows = []
-            with open(os.path.join(dirname, filename), 'r') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    rows.append(row)
-            self.process_fee_schedule_file(rows)
+            self.load_fee_schedule(os.path.join(dirname, filename))
         file_dialog.Destroy()
+
+    def load_fee_schedule(self, path):
+        with open(path, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                self.process_fee_schedule_row(row)
+        self.validate_fee_schedule()
 
     def create_invoice(self, family):
         parents = get_parents(family)
@@ -408,17 +457,42 @@ class DataPanel(wx.Panel):
         for parent in parents:
             print('{:30}  {}'.format(
                 parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL], parent[EMAIL_COL]))
+        print()
+        max_class_width = max([len(s) for s in self.classes])
+        max_teacher_width = max([len(fee[0]) for k, fee in self.class_to_fee_map.items()])
+        teachers = {}
         for student in students:
-            print('  {:28}'.format(student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]))
+            print('{:28}'.format(student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]))
+            for class_name in student[CLASSES_COL]:
+                teacher, fee = self.lookup_class(class_name)
+                try:
+                    teachers[teacher] += fee
+                except KeyError:
+                    teachers[teacher] = fee
+                print('  {class_name} {teacher} ${fee:6.2f}'.format(
+                    class_name=pad_str(class_name, max_class_width),
+                    teacher=pad_str(teacher, max_teacher_width),
+                    fee=fee))
+        print()
+        print('Make checks payable to:')
+        for teacher, fee in sorted(teachers.items()):
+            print('{teacher} ${fee:7.2f}'.format(
+                teacher=pad_str(teacher, max_teacher_width),
+                fee=fee
+            ))
 
-    def process_fee_schedule_file(self, fee_schedule_rows):
-        lookup = {entry[0]: entry for entry in fee_schedule_rows}
+    def process_fee_schedule_row(self, fee_schedule_row):
+        if len(fee_schedule_row) < 3 or not fee_schedule_row[1] or not validate_currency(fee_schedule_row[2]):
+            return
+        self.class_to_fee_map[fee_schedule_row[0]] = [fee_schedule_row[1], validate_currency(fee_schedule_row[2])]
+
+    def validate_fee_schedule(self):
         missing_classes = []
         for n, class_name in enumerate(self.classes):
             try:
-                entry = lookup[class_name]
-                self.fee_panel.SetItem(n, 1, entry[1])
-                self.fee_panel.SetItem(n, 2, entry[2])
+                entry = self.class_to_fee_map[class_name]
+                self.fee_panel.SetItem(n, 1, entry[0])
+                self.fee_panel.SetItem(n, 2, entry[1])
             except KeyError:
                 missing_classes.append(class_name)
         self.fee_panel.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
@@ -429,6 +503,8 @@ class DataPanel(wx.Panel):
             dlg = wx.MessageDialog(self, msg, "Error", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
-        else:
-            for cl in self.classes:
-                print(cl)
+
+    def lookup_class(self, class_name):
+        """Look up the given class and return a 2-tuple (teacher, class_fee)."""
+        fee_entry = self.class_to_fee_map[class_name]
+        return fee_entry[0], fee_entry[1]

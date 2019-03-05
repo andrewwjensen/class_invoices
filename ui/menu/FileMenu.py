@@ -38,12 +38,8 @@ class FileMenu(wx.Menu):
         if file_dialog.ShowModal() == wx.ID_OK:
             filename = file_dialog.GetFilename()
             dirname = file_dialog.GetDirectory()
-            rows = []
-            with open(os.path.join(dirname, filename), 'r') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    rows.append(row)
-            self.data_panel.set_data(rows)
+            path = os.path.join(dirname, filename)
+            self.data_panel.load_students(path)
         file_dialog.Destroy()
 
     def on_quit(self, event=None):

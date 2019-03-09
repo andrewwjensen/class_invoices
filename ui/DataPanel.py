@@ -422,13 +422,14 @@ class DataPanel(wx.Panel):
         self.fee_panel.SortListItems(0)
 
     def on_generate(self, event=None):
-        progress = wx.ProgressDialog("Generating Invoices", "Please wait...",
+        progress = wx.ProgressDialog("Generating Invoices",
+                                     "Please wait...\n\n"
+                                     "Generating invoice for family:",
                                      maximum=len(self.families), parent=self,
-                                     style=wx.PD_SMOOTH | wx.PD_AUTO_HIDE)
+                                     style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
+                                     )
         self.start_thread(self.generate_invoices, progress)
-        print('showing dialog')
         progress.ShowModal()
-        print('done with dialog')
 
     def start_thread(self, func, *args):
         thread = threading.Thread(target=func, args=args)
@@ -438,11 +439,15 @@ class DataPanel(wx.Panel):
     def generate_invoices(self, progress):
         n = 1
         for family_id, family in self.families.items():
+            msg = "Please wait...\n\n" \
+                  "Generating invoice for family: {fam}" \
+                .format(fam=family[0]['last_name'])
+            wx.CallAfter(progress.Update, n - 1, newmsg=msg)
             if get_students(family):
                 with open('invoice{:03}.pdf'.format(n), 'wb') as f:
                     f.write(self.create_invoice(family))
-                    wx.CallAfter(progress.Update, n)
                     n += 1
+        wx.CallAfter(progress.EndModal, 0)
         wx.CallAfter(progress.Destroy)
 
     def on_save(self, event=None):

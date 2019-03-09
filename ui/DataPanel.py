@@ -2,12 +2,14 @@ import csv
 import datetime
 import os
 import re
+import threading
 from decimal import Decimal
 
 import wx
 import wx.lib.mixins.listctrl as listmix
 
 import images
+import pdf
 
 NONCONSECUTIVE_COL = 'is_nonconsecutive'
 NEW_STUDENT_COL = 'is_new_student'
@@ -103,16 +105,17 @@ def transform(col_name, value, transforms):
 
 class AutoWidthListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
     def __init__(self, parent, wx_id, pos=wx.DefaultPosition,
-                 size=wx.DefaultSize, style=0):
+        size=wx.DefaultSize, style=0):
         wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
 
 
-class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin, listmix.TextEditMixin):
+class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
+                                listmix.TextEditMixin):
     def __init__(self, parent, wx_id,
-                 editable_columns=None,
-                 pos=wx.DefaultPosition,
-                 size=wx.DefaultSize, style=0):
+        editable_columns=None,
+        pos=wx.DefaultPosition,
+        size=wx.DefaultSize, style=0):
         wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         listmix.TextEditMixin.__init__(self)
@@ -126,14 +129,18 @@ class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin, lis
 
 
 def validate_person(person):
-    if person[MEMBER_TYPE_COL] and person[MEMBER_TYPE_COL] not in VALID_MEMBER_TYPES:
+    if person[MEMBER_TYPE_COL] and person[
+        MEMBER_TYPE_COL] not in VALID_MEMBER_TYPES:
         raise RuntimeError("Invalid person: bad " + MEMBER_TYPE_COL +
                            " column. Got '" + person[MEMBER_TYPE_COL] +
-                           "'. Valid member types: " + ', '.join(VALID_MEMBER_TYPES))
-    elif person[PARENT_TYPE_COL] and person[PARENT_TYPE_COL] not in VALID_PARENT_TYPES:
+                           "'. Valid member types: " + ', '.join(
+            VALID_MEMBER_TYPES))
+    elif person[PARENT_TYPE_COL] and person[
+        PARENT_TYPE_COL] not in VALID_PARENT_TYPES:
         raise RuntimeError("Invalid person: bad " + PARENT_TYPE_COL +
                            " column. Got '" + person[PARENT_TYPE_COL] +
-                           "'. Valid parent types: " + ', '.join(VALID_PARENT_TYPES))
+                           "'. Valid parent types: " + ', '.join(
+            VALID_PARENT_TYPES))
     elif person[GENDER_COL] and person[GENDER_COL] not in VALID_GENDERS:
         raise RuntimeError("Invalid person: bad " + GENDER_COL +
                            " column. Got '" + person[GENDER_COL] +
@@ -178,7 +185,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         return self.sm_dn, self.sm_up
 
     def __init__(self, parent, my_id, listctl_class, editable_columns=None,
-                 *args, **kwargs):
+        *args, **kwargs):
         """Create the main panel."""
         wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
         if editable_columns is not None:
@@ -222,11 +229,6 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.list_ctrl.InsertColumn(col, info)
 
 
-def pad_str(s, n):
-    s += ' '
-    return s + '_' * (n - len(s))
-
-
 class DataPanel(wx.Panel):
     """This Panel holds the main application data, a table of CSV values."""
 
@@ -255,9 +257,13 @@ class DataPanel(wx.Panel):
 
         #######################################################################
         # Create splitter window and its two horizontal panels
-        self.splitter = wx.SplitterWindow(self, wx.ID_ANY, style=wx.SP_3DBORDER | wx.SP_3D)
-        self.student_panel = ListSorterPanel(self.splitter, wx.ID_ANY, AutoWidthListCtrl)
-        self.fee_panel = ListSorterPanel(self.splitter, wx.ID_ANY, AutoWidthEditableListCtrl, editable_columns=[2])
+        self.splitter = wx.SplitterWindow(self, wx.ID_ANY,
+                                          style=wx.SP_3DBORDER | wx.SP_3D)
+        self.student_panel = ListSorterPanel(self.splitter, wx.ID_ANY,
+                                             AutoWidthListCtrl)
+        self.fee_panel = ListSorterPanel(self.splitter, wx.ID_ANY,
+                                         AutoWidthEditableListCtrl,
+                                         editable_columns=[2])
         self.splitter.SplitVertically(self.student_panel, self.fee_panel)
 
         #######################################################################
@@ -265,15 +271,18 @@ class DataPanel(wx.Panel):
         self.student_panel.SetMinSize((400, 100))
 
         # Create student panel buttons
-        self.button_generate = wx.Button(self.student_panel, wx.ID_ANY, "Generate Invoices...")
+        self.button_generate = wx.Button(self.student_panel, wx.ID_ANY,
+                                         "Generate Invoices...")
         self.Bind(wx.EVT_BUTTON, self.on_generate, self.button_generate)
         self.button_generate.Disable()
 
         student_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        student_buttons_sizer.Add(self.button_generate, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+        student_buttons_sizer.Add(self.button_generate, 0,
+                                  wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
 
         student_table_sizer = wx.BoxSizer(wx.VERTICAL)
-        student_table_sizer.Add(self.student_panel.GetListCtrl(), 1, wx.EXPAND, 0)
+        student_table_sizer.Add(self.student_panel.GetListCtrl(), 1, wx.EXPAND,
+                                0)
         student_table_sizer.Add(student_buttons_sizer, 0, wx.EXPAND)
         self.student_panel.SetSizer(student_table_sizer)
 
@@ -282,17 +291,21 @@ class DataPanel(wx.Panel):
         self.fee_panel.SetMinSize((200, 100))
 
         # Create fee schedule panel buttons
-        self.button_import = wx.Button(self.fee_panel, wx.ID_ANY, "Import Fee Schedule...")
+        self.button_import = wx.Button(self.fee_panel, wx.ID_ANY,
+                                       "Import Fee Schedule...")
         self.Bind(wx.EVT_BUTTON, self.on_import, self.button_import)
         self.button_import.Disable()
 
-        self.button_save = wx.Button(self.fee_panel, wx.ID_ANY, "Save Fee Schedule...")
+        self.button_save = wx.Button(self.fee_panel, wx.ID_ANY,
+                                     "Save Fee Schedule...")
         self.Bind(wx.EVT_BUTTON, self.on_save, self.button_save)
         self.button_save.Disable()
 
         fee_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        fee_buttons_sizer.Add(self.button_import, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
-        fee_buttons_sizer.Add(self.button_save, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+        fee_buttons_sizer.Add(self.button_import, 0,
+                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+        fee_buttons_sizer.Add(self.button_save, 0,
+                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
 
         fee_table_sizer = wx.BoxSizer(wx.VERTICAL)
         fee_table_sizer.Add(self.fee_panel.GetListCtrl(), 1, wx.EXPAND, 0)
@@ -366,7 +379,8 @@ class DataPanel(wx.Panel):
             self.classes.add(class_name)
         if display_filter(person):
             for c, column in enumerate(DISPLAY_COLUMNS):
-                col_value = transform(column, person[column], DISPLAY_TRANSFORMS)
+                col_value = transform(column, person[column],
+                                      DISPLAY_TRANSFORMS)
                 if c == 0:
                     self.student_panel.InsertItem(row_num, col_value)
                 else:
@@ -408,8 +422,28 @@ class DataPanel(wx.Panel):
         self.fee_panel.SortListItems(0)
 
     def on_generate(self, event=None):
+        progress = wx.ProgressDialog("Generating Invoices", "Please wait...",
+                                     maximum=len(self.families), parent=self,
+                                     style=wx.PD_SMOOTH | wx.PD_AUTO_HIDE)
+        self.start_thread(self.generate_invoices, progress)
+        print('showing dialog')
+        progress.ShowModal()
+        print('done with dialog')
+
+    def start_thread(self, func, *args):
+        thread = threading.Thread(target=func, args=args)
+        thread.setDaemon(True)
+        thread.start()
+
+    def generate_invoices(self, progress):
+        n = 1
         for family_id, family in self.families.items():
-            self.create_invoice(family)
+            if get_students(family):
+                with open('invoice{:03}.pdf'.format(n), 'wb') as f:
+                    f.write(self.create_invoice(family))
+                    wx.CallAfter(progress.Update, n)
+                    n += 1
+        wx.CallAfter(progress.Destroy)
 
     def on_save(self, event=None):
         dirname = ''
@@ -451,40 +485,42 @@ class DataPanel(wx.Panel):
         self.validate_fee_schedule()
 
     def create_invoice(self, family):
+        invoice = {}
         parents = get_parents(family)
         students = get_students(family)
-        print('======================')
+        invoice['parent'] = []
         for parent in parents:
-            print('{:30}  {}'.format(
-                parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL], parent[EMAIL_COL]))
-        print()
-        max_class_width = max([len(s) for s in self.classes]) + 2
-        max_teacher_width = max([len(fee[0]) for k, fee in self.class_to_fee_map.items()]) + 2
-        teachers = {}
+            invoice['parent'].append([
+                parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL],
+                parent[EMAIL_COL]])
+        invoice['max_class_width'] = max([len(s) for s in self.classes])
+        invoice['max_teacher_width'] = max(
+            [len(fee[0]) for k, fee in self.class_to_fee_map.items()])
+        payable = {}
+        invoice['students'] = {}
+        invoice['total'] = Decimal(0.00)
         for student in students:
-            print('{:28}'.format(student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]))
+            name = student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]
+            invoice['students'][name] = []
             for class_name in student[CLASSES_COL]:
                 teacher, fee = self.lookup_class(class_name)
+                invoice['students'][name].append([class_name, teacher, fee])
+                invoice['total'] += fee
                 try:
-                    teachers[teacher] += fee
+                    payable[teacher] += fee
                 except KeyError:
-                    teachers[teacher] = fee
-                print('  {class_name} {teacher} ${fee:6.2f}'.format(
-                    class_name=pad_str(class_name, max_class_width),
-                    teacher=pad_str(teacher, max_teacher_width),
-                    fee=fee))
-        print()
-        print('Make checks payable to:')
-        for teacher, fee in sorted(teachers.items()):
-            print('{teacher} ${fee:7.2f}'.format(
-                teacher=pad_str(teacher, max_teacher_width),
-                fee=fee
-            ))
+                    payable[teacher] = fee
+        invoice['payable'] = payable
+        # print('\n'.join(pdf.generate_pdf(invoice, 'test.pdf')))
+        return pdf.generate(invoice, 'invoice.pdf')
 
     def process_fee_schedule_row(self, fee_schedule_row):
-        if len(fee_schedule_row) < 3 or not fee_schedule_row[1] or not validate_currency(fee_schedule_row[2]):
+        if len(fee_schedule_row) < 3 or not fee_schedule_row[
+            1] or not validate_currency(fee_schedule_row[2]):
             return
-        self.class_to_fee_map[fee_schedule_row[0]] = [fee_schedule_row[1], validate_currency(fee_schedule_row[2])]
+        self.class_to_fee_map[fee_schedule_row[0]] = [fee_schedule_row[1],
+                                                      validate_currency(
+                                                          fee_schedule_row[2])]
 
     def validate_fee_schedule(self):
         missing_classes = []

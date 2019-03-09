@@ -439,9 +439,10 @@ class DataPanel(wx.Panel):
     def generate_invoices(self, progress):
         n = 1
         for family_id, family in self.families.items():
+            if progress.WasCancelled():
+                break
             msg = "Please wait...\n\n" \
-                  "Generating invoice for family: {fam}" \
-                .format(fam=family[0]['last_name'])
+                  "Generating invoice for family: {fam}".format(fam=family[0]['last_name'])
             wx.CallAfter(progress.Update, n - 1, newmsg=msg)
             if get_students(family):
                 with open('invoice{:03}.pdf'.format(n), 'wb') as f:

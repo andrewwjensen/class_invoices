@@ -104,18 +104,14 @@ def transform(col_name, value, transforms):
 
 
 class AutoWidthListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
-    def __init__(self, parent, wx_id, pos=wx.DefaultPosition,
-        size=wx.DefaultSize, style=0):
+    def __init__(self, parent, wx_id, pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
         wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
 
 
 class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
                                 listmix.TextEditMixin):
-    def __init__(self, parent, wx_id,
-        editable_columns=None,
-        pos=wx.DefaultPosition,
-        size=wx.DefaultSize, style=0):
+    def __init__(self, parent, wx_id, editable_columns=None, pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
         wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         listmix.TextEditMixin.__init__(self)
@@ -129,18 +125,14 @@ class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
 
 
 def validate_person(person):
-    if person[MEMBER_TYPE_COL] and person[
-        MEMBER_TYPE_COL] not in VALID_MEMBER_TYPES:
+    if person[MEMBER_TYPE_COL] and person[MEMBER_TYPE_COL] not in VALID_MEMBER_TYPES:
         raise RuntimeError("Invalid person: bad " + MEMBER_TYPE_COL +
                            " column. Got '" + person[MEMBER_TYPE_COL] +
-                           "'. Valid member types: " + ', '.join(
-            VALID_MEMBER_TYPES))
-    elif person[PARENT_TYPE_COL] and person[
-        PARENT_TYPE_COL] not in VALID_PARENT_TYPES:
+                           "'. Valid member types: " + ', '.join(VALID_MEMBER_TYPES))
+    elif person[PARENT_TYPE_COL] and person[PARENT_TYPE_COL] not in VALID_PARENT_TYPES:
         raise RuntimeError("Invalid person: bad " + PARENT_TYPE_COL +
                            " column. Got '" + person[PARENT_TYPE_COL] +
-                           "'. Valid parent types: " + ', '.join(
-            VALID_PARENT_TYPES))
+                           "'. Valid parent types: " + ', '.join(VALID_PARENT_TYPES))
     elif person[GENDER_COL] and person[GENDER_COL] not in VALID_GENDERS:
         raise RuntimeError("Invalid person: bad " + GENDER_COL +
                            " column. Got '" + person[GENDER_COL] +
@@ -170,13 +162,14 @@ def validate_currency(fee_str):
 
 
 def get_parents(family):
-    return [person for person in family if person[MEMBER_TYPE_COL] == 'parent']
+    return family['parents']
 
 
 def get_students(family):
-    return [person for person in family if person[MEMBER_TYPE_COL] != 'parent']
+    return family['students']
 
 
+# noinspection PyPep8Naming
 class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
     def GetListCtrl(self):
         return self.list_ctrl
@@ -184,8 +177,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
     def GetSortImages(self):
         return self.sm_dn, self.sm_up
 
-    def __init__(self, parent, my_id, listctl_class, editable_columns=None,
-        *args, **kwargs):
+    def __init__(self, parent, my_id, listctl_class, editable_columns=None, *args, **kwargs):
         """Create the main panel."""
         wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
         if editable_columns is not None:
@@ -229,6 +221,13 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.list_ctrl.InsertColumn(col, info)
 
 
+def start_thread(func, *args):
+    thread = threading.Thread(target=func, args=args)
+    thread.setDaemon(True)
+    thread.start()
+
+
+# noinspection PyUnusedLocal
 class DataPanel(wx.Panel):
     """This Panel holds the main application data, a table of CSV values."""
 
@@ -321,8 +320,9 @@ class DataPanel(wx.Panel):
         box_outer.SetSizeHints(self)
         self.Layout()
         # TODO: remove these
-        self.load_students('/Users/ajensen/Downloads/members-list.csv')
-        self.load_fee_schedule('/Users/ajensen/Downloads/Fee Schedule.csv')
+        # self.load_students(os.path.expandvars('${HOME}/Downloads/members-list.csv'))
+        self.load_students(os.path.expandvars('${HOME}/Downloads/member-list-sm.csv'))
+        self.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
 
     def load_students(self, path):
         rows = []
@@ -392,9 +392,18 @@ class DataPanel(wx.Panel):
     def add_to_family(self, person):
         family_id = person[FAMILY_ID_COL]
         try:
-            self.families[family_id].append(person)
+            if person[MEMBER_TYPE_COL].lower() == 'parent':
+                self.families[family_id]['parents'].append(person)
+            else:
+                self.families[family_id]['students'].append(person)
         except KeyError:
-            self.families[family_id] = [person]
+            self.families[family_id] = {
+                'id': family_id,
+                'last_name': person[LAST_NAME_COL],
+                'parents': [],
+                'students': [],
+            }
+            self.add_to_family(person)
 
     def create_person(self, row):
         person = {}
@@ -428,13 +437,8 @@ class DataPanel(wx.Panel):
                                      maximum=len(self.families), parent=self,
                                      style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
                                      )
-        self.start_thread(self.generate_invoices, progress)
+        start_thread(self.generate_invoices, progress)
         progress.ShowModal()
-
-    def start_thread(self, func, *args):
-        thread = threading.Thread(target=func, args=args)
-        thread.setDaemon(True)
-        thread.start()
 
     def generate_invoices(self, progress):
         n = 1
@@ -442,7 +446,7 @@ class DataPanel(wx.Panel):
             if progress.WasCancelled():
                 break
             msg = "Please wait...\n\n" \
-                  "Generating invoice for family: {fam}".format(fam=family[0]['last_name'])
+                  "Generating invoice for family: {fam}".format(fam=family['last_name'])
             wx.CallAfter(progress.Update, n - 1, newmsg=msg)
             if get_students(family):
                 with open('invoice{:03}.pdf'.format(n), 'wb') as f:
@@ -521,8 +525,7 @@ class DataPanel(wx.Panel):
         return pdf.generate(invoice, 'invoice.pdf')
 
     def process_fee_schedule_row(self, fee_schedule_row):
-        if len(fee_schedule_row) < 3 or not fee_schedule_row[
-            1] or not validate_currency(fee_schedule_row[2]):
+        if len(fee_schedule_row) < 3 or not fee_schedule_row[1] or not validate_currency(fee_schedule_row[2]):
             return
         self.class_to_fee_map[fee_schedule_row[0]] = [fee_schedule_row[1],
                                                       validate_currency(

@@ -5,10 +5,14 @@ APP_NAME = 'ClassInvoices'
 
 DEFAULT_DIRECTORY_KEY = 'default_dir'
 RECENT_FILES_KEY = 'recent'
+EMAIL_MESSAGE_KEY = 'email_body'
+EMAIL_SUBJECT_KEY = 'email_subject'
 
 DEFAULTS = {
     RECENT_FILES_KEY: [],
     DEFAULT_DIRECTORY_KEY: '',
+    EMAIL_MESSAGE_KEY: 'Attached, please find the class enrollment invoice for your student\'s classes this semester.',
+    EMAIL_SUBJECT_KEY: 'Enrollment Invoice 2019, Semester 2',
 }
 
 conf = None

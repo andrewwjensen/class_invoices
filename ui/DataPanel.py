@@ -3,13 +3,17 @@ import datetime
 import os
 import re
 import threading
+import traceback
 from decimal import Decimal
 
 import wx
 import wx.lib.mixins.listctrl as listmix
 
-import images
+import app_config
+import mail
 import pdf
+import ui.EmailInfoWindow
+from ui.ListSorterPanel import ListSorterPanel
 
 NONCONSECUTIVE_COL = 'is_nonconsecutive'
 NEW_STUDENT_COL = 'is_new_student'
@@ -169,58 +173,6 @@ def get_students(family):
     return family['students']
 
 
-# noinspection PyPep8Naming
-class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
-    def GetListCtrl(self):
-        return self.list_ctrl
-
-    def GetSortImages(self):
-        return self.sm_dn, self.sm_up
-
-    def __init__(self, parent, my_id, listctl_class, editable_columns=None, *args, **kwargs):
-        """Create the main panel."""
-        wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
-        if editable_columns is not None:
-            kwargs['editable_columns'] = editable_columns
-        self.list_ctrl = listctl_class(self, wx.ID_ANY,
-                                       style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
-                                       size=(1, 150),
-                                       **kwargs)
-        self.editable_columns = editable_columns
-
-        #######################################################################
-        # Set up column sorter mixin, which sorts table when column headers are clicked on
-        self.itemDataMap = {}
-        listmix.ColumnSorterMixin.__init__(self, 1)
-        self.imageList = wx.ImageList(16, 16)
-        self.sm_up = self.imageList.Add(images.SmallUpArrow.GetBitmap())
-        self.sm_dn = self.imageList.Add(images.SmallDnArrow.GetBitmap())
-        self.list_ctrl.SetImageList(self.imageList, wx.IMAGE_LIST_SMALL)
-
-    def clear(self):
-        self.list_ctrl.DeleteAllItems()
-        self.list_ctrl.DeleteAllColumns()
-        self.itemDataMap = {}
-
-    def InsertItem(self, row, value):
-        self.list_ctrl.InsertItem(row, value)
-        self.itemDataMap[row] = [value]
-        self.list_ctrl.SetItemData(row, row)
-
-    def SetItem(self, row, col, value):
-        self.list_ctrl.SetItem(row, col, str(value))
-        if row in self.itemDataMap and col < len(self.itemDataMap[row]):
-            self.itemDataMap[row][col] = value
-        else:
-            self.itemDataMap[row].append(value)
-
-    def SetColumnWidth(self, col, sz):
-        self.list_ctrl.SetColumnWidth(col, sz)
-
-    def InsertColumn(self, col, info):
-        self.list_ctrl.InsertColumn(col, info)
-
-
 def start_thread(func, *args):
     thread = threading.Thread(target=func, args=args)
     thread.setDaemon(True)
@@ -239,6 +191,7 @@ class DataPanel(wx.Panel):
         self.fee_panel.clear()
         self.class_to_fee_map = {}
         self.button_generate.Disable()
+        self.button_email.Disable()
         self.button_import.Disable()
         self.button_save.Disable()
 
@@ -253,6 +206,7 @@ class DataPanel(wx.Panel):
         self.families = {}
         self.parent = parent
         self.class_to_fee_map = {}
+        self.error_msg = None
 
         #######################################################################
         # Create splitter window and its two horizontal panels
@@ -275,14 +229,20 @@ class DataPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.on_generate, self.button_generate)
         self.button_generate.Disable()
 
+        self.button_email = wx.Button(self.student_panel, wx.ID_ANY,
+                                      "Email Invoices...")
+        self.Bind(wx.EVT_BUTTON, self.on_email, self.button_email)
+        self.button_email.Disable()
+
         student_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
         student_buttons_sizer.Add(self.button_generate, 0,
-                                  wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+                                  wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
+        student_buttons_sizer.Add(self.button_email, 0,
+                                  wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         student_table_sizer = wx.BoxSizer(wx.VERTICAL)
-        student_table_sizer.Add(self.student_panel.GetListCtrl(), 1, wx.EXPAND,
-                                0)
-        student_table_sizer.Add(student_buttons_sizer, 0, wx.EXPAND)
+        student_table_sizer.Add(self.student_panel.GetListCtrl(), 1, wx.EXPAND, 5)
+        student_table_sizer.Add(student_buttons_sizer, 0, wx.EXPAND, 5)
         self.student_panel.SetSizer(student_table_sizer)
 
         #######################################################################
@@ -302,19 +262,19 @@ class DataPanel(wx.Panel):
 
         fee_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
         fee_buttons_sizer.Add(self.button_import, 0,
-                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
         fee_buttons_sizer.Add(self.button_save, 0,
-                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL)
+                              wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         fee_table_sizer = wx.BoxSizer(wx.VERTICAL)
-        fee_table_sizer.Add(self.fee_panel.GetListCtrl(), 1, wx.EXPAND, 0)
-        fee_table_sizer.Add(fee_buttons_sizer, 0, wx.EXPAND)
+        fee_table_sizer.Add(self.fee_panel.GetListCtrl(), 1, wx.EXPAND, 5)
+        fee_table_sizer.Add(fee_buttons_sizer, 0, wx.EXPAND, 5)
         self.fee_panel.SetSizer(fee_table_sizer)
 
         #######################################################################
         # Add the splitter to a sizer and do the layout to pull everything together
         box_outer = wx.BoxSizer(wx.VERTICAL)
-        box_outer.Add(self.splitter, 1, wx.EXPAND)
+        box_outer.Add(self.splitter, 1, wx.EXPAND, 5)
         self.SetAutoLayout(True)
         self.SetSizer(box_outer)
         box_outer.SetSizeHints(self)
@@ -343,6 +303,7 @@ class DataPanel(wx.Panel):
                 else:
                     row_num = self.process_data_row(row_num, row)
             self.button_generate.Enable()
+            self.button_email.Enable()
             self.button_import.Enable()
             self.button_save.Enable()
 
@@ -440,6 +401,21 @@ class DataPanel(wx.Panel):
         start_thread(self.generate_invoices, progress)
         progress.ShowModal()
 
+    def on_email(self, event=None):
+        # message = self.get_subject()
+        # message = self.get_message()
+        frame = ui.EmailInfoWindow(self, 'Email Info')
+        return
+        progress = wx.ProgressDialog("Emailing Invoices",
+                                     "Please wait...\n\n"
+                                     "Emailing invoice for family:",
+                                     maximum=len(self.families), parent=self,
+                                     style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
+                                     )
+        start_thread(self.email_invoices, message, progress)
+        progress.ShowModal()
+        self.check_error()
+
     def generate_invoices(self, progress):
         n = 1
         for family_id, family in self.families.items():
@@ -452,6 +428,34 @@ class DataPanel(wx.Panel):
                 with open('invoice{:03}.pdf'.format(n), 'wb') as f:
                     f.write(self.create_invoice(family))
                     n += 1
+        wx.CallAfter(progress.EndModal, 0)
+        wx.CallAfter(progress.Destroy)
+
+    def email_invoices(self, message, progress):
+        gmail_service = mail.get_gmail_service()
+        profile = gmail_service.users().getProfile(userId='me').execute()
+        sender = profile['emailAddress']
+        try:
+            n = 1
+            for family_id, family in self.families.items():
+                if progress.WasCancelled():
+                    break
+                msg = "Please wait...\n\n" \
+                      "Emailing invoice for family: {fam}".format(fam=family['last_name'])
+                wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+                if get_students(family):
+                    pdf_attachment = self.create_invoice(family)
+                    n += 1
+                    recipients = [p[EMAIL_COL] for p in family['parents']]
+                    if recipients:
+                        msg = mail.create_message_with_attachment(sender=sender, recipients=recipients,
+                                                                  subject='Class Enrollment Invoice',
+                                                                  message_text=message, data=pdf_attachment)
+                        print('msg:', msg)
+                        mail.create_draft(gmail_service, 'me', msg)
+        except Exception as e:
+            self.error_msg = "Error while sending email: " + str(e)
+            traceback.print_exc()
         wx.CallAfter(progress.EndModal, 0)
         wx.CallAfter(progress.Destroy)
 
@@ -521,7 +525,6 @@ class DataPanel(wx.Panel):
                 except KeyError:
                     payable[teacher] = fee
         invoice['payable'] = payable
-        # print('\n'.join(pdf.generate_pdf(invoice, 'test.pdf')))
         return pdf.generate(invoice, 'invoice.pdf')
 
     def process_fee_schedule_row(self, fee_schedule_row):
@@ -553,3 +556,25 @@ class DataPanel(wx.Panel):
         """Look up the given class and return a 2-tuple (teacher, class_fee)."""
         fee_entry = self.class_to_fee_map[class_name]
         return fee_entry[0], fee_entry[1]
+
+    def check_error(self):
+        if self.error_msg:
+            caption = 'Warning'
+            dlg = wx.MessageDialog(self, self.error_msg,
+                                   caption, wx.OK | wx.ICON_WARNING)
+            self.error_msg = None
+            dlg.ShowModal()
+            dlg.Destroy()
+
+    def get_message(self):
+        message = 'Enter the body of the email message to send to parents'
+        default_subject = app_config.conf.get(app_config.EMAIL_SUBJECT_KEY)
+        default_message = app_config.conf.get(app_config.EMAIL_MESSAGE_KEY)
+        dlg = wx.TextEntryDialog(self, message, caption='title0',
+                                 value=default_message, style=wx.OK | wx.CANCEL)
+        dlg.ShowModal()
+        # if dlg.
+        result = dlg.GetValue()
+        print('got body=', result)
+        dlg.Destroy()
+        return result

@@ -3,14 +3,14 @@
 import wx
 
 import app_config
-from ui.MainFrame import MainFrame
+import ui.MainFrame
 
 
 def main():
     app = wx.App()
-    frame = MainFrame(None,
-                      title=app_config.APP_NAME,
-                      size=(500, 400))
+    frame = ui.MainFrame(None,
+                         title=app_config.APP_NAME,
+                         size=(500, 400))
     frame.Maximize()
     frame.set_splitter_width()
     frame.Show()

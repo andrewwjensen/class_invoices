@@ -1,9 +1,9 @@
 import wx
 
 import ui.DataPanel
-from ui.menu.EditMenu import EditMenu
-from ui.menu.FileMenu import FileMenu
-from ui.menu.HelpMenu import HelpMenu
+import ui.menu.EditMenu
+import ui.menu.FileMenu
+import ui.menu.HelpMenu
 
 
 class MainFrame(wx.Frame):
@@ -14,13 +14,13 @@ class MainFrame(wx.Frame):
         wx.Frame.__init__(self, *args, **kwargs)
 
         # Add the Widget Panel
-        self.data_panel = ui.DataPanel.DataPanel(self, wx.ID_ANY)
+        self.data_panel = ui.DataPanel(self, wx.ID_ANY)
 
         # Build the menu bar
         menu_bar = wx.MenuBar()
-        menu_bar.Append(FileMenu(self, self.data_panel), "&File")
-        menu_bar.Append(EditMenu(self), "&Edit")
-        menu_bar.Append(HelpMenu(self), "&Help")
+        menu_bar.Append(ui.menu.FileMenu(self, self.data_panel), "&File")
+        menu_bar.Append(ui.menu.EditMenu(self), "&Edit")
+        menu_bar.Append(ui.menu.HelpMenu(self), "&Help")
         self.SetMenuBar(menu_bar)
 
         # Add a status bar at the bottom of the frame
@@ -33,6 +33,3 @@ class MainFrame(wx.Frame):
     def set_splitter_width(self):
         width = self.data_panel.splitter.GetSize()[0]
         self.data_panel.splitter.SetSashPosition(width * 2 / 3)
-
-    def copy(self):
-        print(self.FindFocus())

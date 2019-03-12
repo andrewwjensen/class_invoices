@@ -1,110 +1,41 @@
 import csv
-import datetime
 import os
-import re
-import threading
 import traceback
 from decimal import Decimal
 
 import wx
 import wx.lib.mixins.listctrl as listmix
 
-import app_config
 import mail
 import pdf
 import ui.EmailInfoWindow
+from model.columns import Column
+from model.family import get_parents, get_students
+from model.parse import transform, REQUIRED_COLUMNS, validate_currency, parse_headers, parse_person
 from ui.ListSorterPanel import ListSorterPanel
-
-NONCONSECUTIVE_COL = 'is_nonconsecutive'
-NEW_STUDENT_COL = 'is_new_student'
-NOTES_COL = 'notes'
-GRADE_COL = 'grade'
-GENDER_COL = 'gender'
-BIRTHDAY_COL = 'birth_date'
-PHONE_COL = 'phone'
-PARENT_TYPE_COL = 'parent_type'
-EMAIL_COL = 'email'
-MEMBER_TYPE_COL = 'member_type'
-REGISTERED_COL = 'registered_at'
-CLASSES_COL = 'classes'
-FIRST_NAME_COL = 'first_name'
-LAST_NAME_COL = 'last_name'
-FAMILY_ID_COL = 'family_id'
-
-COLUMN_MAP = {
-    FAMILY_ID_COL: 'Family ID',
-    REGISTERED_COL: 'Register Date',
-    MEMBER_TYPE_COL: 'Parent/Student',
-    LAST_NAME_COL: 'Last Name',
-    FIRST_NAME_COL: 'First Name',
-    EMAIL_COL: 'E-mail Address',
-    PARENT_TYPE_COL: 'Mother/Father',
-    PHONE_COL: 'Phone',
-    BIRTHDAY_COL: 'Birthday',
-    GENDER_COL: 'Gender',
-    GRADE_COL: 'Grade',
-    NOTES_COL: 'Notes',
-    NEW_STUDENT_COL: 'New?',
-    NONCONSECUTIVE_COL: 'Nonconsecutive?',
-    CLASSES_COL: 'Classes',
-}
-
-VALID_MEMBER_TYPES = ['parent', 'student']
-VALID_PARENT_TYPES = ['mother', 'father']
-VALID_GENDERS = ['male', 'female']
-
-DISPLAY_COLUMNS = [
-    FAMILY_ID_COL,
-    LAST_NAME_COL,
-    FIRST_NAME_COL,
-    CLASSES_COL,
-]
-
-
-# DISPLAY_COLUMNS = COLUMN_MAP.keys()
-
-
-def parse_bool(bool_str):
-    if bool_str is None:
-        return False
-    val = bool_str.strip().lower()
-    return val not in ['', 'no', 'n', 'false', 'f', '0']
-
-
-def parse_date(date_str):
-    try:
-        return datetime.datetime.strptime(date_str, '%m/%d/%Y %H:%M')
-    except ValueError:
-        return date_str
-
-
-def parse_list(list_str):
-    """Parse comma-separated list"""
-    if list_str.strip():
-        return [t.strip() for t in list_str.split(',') if t.strip()]
-    else:
-        return []
-
-
-PARSE_TRANSFORMS = {
-    NEW_STUDENT_COL: lambda value: parse_bool(value),
-    NONCONSECUTIVE_COL: lambda value: parse_bool(value),
-    CLASSES_COL: lambda value: parse_list(value),
-    REGISTERED_COL: lambda value: parse_date(value),
-    BIRTHDAY_COL: lambda value: parse_date(value),
-}
+from util import start_thread
 
 DISPLAY_TRANSFORMS = {
-    CLASSES_COL: lambda value: ', '.join(value),
+    Column.CLASSES: lambda value: ', '.join(value),
 }
 
-
-def transform(col_name, value, transforms):
-    try:
-        transform_func = transforms[col_name]
-    except KeyError:
-        return value
-    return transform_func(value)
+COLUMN_DISPLAY_MAP = {
+    Column.FAMILY_ID: 'Family ID',
+    Column.REGISTERED: 'Register Date',
+    Column.MEMBER_TYPE: 'Parent/Student',
+    Column.LAST_NAME: 'Last Name',
+    Column.FIRST_NAME: 'First Name',
+    Column.EMAIL: 'E-mail Address',
+    Column.PARENT_TYPE: 'Mother/Father',
+    Column.PHONE: 'Phone',
+    Column.BIRTHDAY: 'Birthday',
+    Column.GENDER: 'Gender',
+    Column.GRADE: 'Grade',
+    Column.NOTES: 'Notes',
+    Column.NEW_STUDENT: 'New?',
+    Column.NONCONSECUTIVE: 'Nonconsecutive?',
+    Column.CLASSES: 'Classes',
+}
 
 
 class AutoWidthListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
@@ -128,84 +59,37 @@ class AutoWidthEditableListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
             listmix.TextEditMixin.OpenEditor(self, col, row)
 
 
-def validate_person(person):
-    if person[MEMBER_TYPE_COL] and person[MEMBER_TYPE_COL] not in VALID_MEMBER_TYPES:
-        raise RuntimeError("Invalid person: bad " + MEMBER_TYPE_COL +
-                           " column. Got '" + person[MEMBER_TYPE_COL] +
-                           "'. Valid member types: " + ', '.join(VALID_MEMBER_TYPES))
-    elif person[PARENT_TYPE_COL] and person[PARENT_TYPE_COL] not in VALID_PARENT_TYPES:
-        raise RuntimeError("Invalid person: bad " + PARENT_TYPE_COL +
-                           " column. Got '" + person[PARENT_TYPE_COL] +
-                           "'. Valid parent types: " + ', '.join(VALID_PARENT_TYPES))
-    elif person[GENDER_COL] and person[GENDER_COL] not in VALID_GENDERS:
-        raise RuntimeError("Invalid person: bad " + GENDER_COL +
-                           " column. Got '" + person[GENDER_COL] +
-                           "'. Valid parent types: " + ', '.join(VALID_GENDERS))
+def validate_fee_schedule_row(r, row):
+    if len(row) < 3:
+        raise RuntimeError('Too few columns in fee schedule on row {}: {}'.format(r + 1, row))
+    if not row[1]:
+        raise RuntimeError('Empty teacher in row {}, column 2 of fee schedule'.format(r + 1))
+    if not validate_currency(row[2]):
+        raise RuntimeError('Invalid currency in row {}, column 3 of fee schedule: {}'.format(r + 1, row[2]))
+    return [row[0], row[1], validate_currency(row[2])]
 
 
-def display_filter(person):
-    return person[MEMBER_TYPE_COL] == 'student'
-
-
-def validate_header_row(row):
-    missing_columns = []
-    for column in DISPLAY_COLUMNS:
-        if column not in row:
-            missing_columns.append(column)
-    if missing_columns:
-        raise RuntimeError("Missing required columns: "
-                           + ', '.join(missing_columns))
-
-
-def validate_currency(fee_str):
-    if fee_str is not None:
-        m = re.match(r'^ *\$? *(\d+(?:[.]\d{2})?) *$', fee_str)
-        if m:
-            return Decimal(m.group(1))
-    return None
-
-
-def get_parents(family):
-    return family['parents']
-
-
-def get_students(family):
-    return family['students']
-
-
-def start_thread(func, *args):
-    thread = threading.Thread(target=func, args=args)
-    thread.setDaemon(True)
-    thread.start()
-
-
-# noinspection PyUnusedLocal
 class DataPanel(wx.Panel):
     """This Panel holds the main application data, a table of CSV values."""
 
     def clear_data(self):
-        self.headers = []
         self.classes = set()
         self.families = {}
         self.student_panel.clear()
         self.fee_panel.clear()
-        self.class_to_fee_map = {}
+
         self.button_generate.Disable()
         self.button_email.Disable()
         self.button_import.Disable()
-        self.button_save.Disable()
+        self.button_export.Disable()
 
     def __init__(self, parent, my_id, *args, **kwargs):
         """Create the main panel."""
         wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
 
-        self.headers = []
         self.classes = set()
-        self.column_name_to_idx = {}
-        self.column_idx_to_name = {}
         self.families = {}
         self.parent = parent
-        self.class_to_fee_map = {}
         self.error_msg = None
 
         #######################################################################
@@ -255,15 +139,15 @@ class DataPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.on_import, self.button_import)
         self.button_import.Disable()
 
-        self.button_save = wx.Button(self.fee_panel, wx.ID_ANY,
-                                     "Save Fee Schedule...")
-        self.Bind(wx.EVT_BUTTON, self.on_save, self.button_save)
-        self.button_save.Disable()
+        self.button_export = wx.Button(self.fee_panel, wx.ID_ANY,
+                                       "Export Fee Schedule to CSV...")
+        self.Bind(wx.EVT_BUTTON, self.on_export, self.button_export)
+        self.button_export.Disable()
 
         fee_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
         fee_buttons_sizer.Add(self.button_import, 0,
                               wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
-        fee_buttons_sizer.Add(self.button_save, 0,
+        fee_buttons_sizer.Add(self.button_export, 0,
                               wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         fee_table_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -282,66 +166,76 @@ class DataPanel(wx.Panel):
         # TODO: remove these
         # self.load_students(os.path.expandvars('${HOME}/Downloads/members-list.csv'))
         self.load_students(os.path.expandvars('${HOME}/Downloads/member-list-sm.csv'))
-        self.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
+        # self.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
+
+    def on_open(self, event=None):
+        """Open a new CSV file."""
+        dirname = ''
+        file_dialog = wx.FileDialog(parent=self.parent,
+                                    message="Choose a registration CSV file",
+                                    defaultDir=dirname,
+                                    defaultFile="",
+                                    wildcard="*.csv",
+                                    style=wx.FD_OPEN)
+        if file_dialog.ShowModal() == wx.ID_OK:
+            filename = file_dialog.GetFilename()
+            dirname = file_dialog.GetDirectory()
+            path = os.path.join(dirname, filename)
+            try:
+                self.load_students(path)
+            except Exception as e:
+                self.error_msg = "Error while opening registration file: " + str(e)
+                traceback.print_exc()
+        file_dialog.Destroy()
+        self.check_error()
 
     def load_students(self, path):
-        rows = []
+        first_row = True
+        families = {}
+        column_idx_to_name = None
         with open(path, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                rows.append(row)
-        self.set_data(rows)
-
-    def set_data(self, data):
-        self.clear_data()
-        row_num = 0
-        try:
-            for row in data:
-                if not self.headers:
-                    # This is the first row, map columns
-                    self.process_header_row(row)
+                if first_row:
+                    # This is the first row, process headers
+                    column_idx_to_name = parse_headers(row)
+                    first_row = False
                 else:
-                    row_num = self.process_data_row(row_num, row)
-            self.button_generate.Enable()
-            self.button_email.Enable()
-            self.button_import.Enable()
-            self.button_save.Enable()
+                    parse_person(row, column_idx_to_name, families)
+        self.clear_data()
+        self.show_headers()
+        self.show_families(families)
 
-            # Update ColumnSorterMixin column count
-            self.student_panel.SetColumnCount(len(self.headers))
-            self.student_panel.SortListItems(1)
-
-            self.process_classes()
-
-        except RuntimeError as e:
-            self.clear_data()
-            dlg = wx.MessageDialog(self, str(e), "Warning", wx.OK | wx.CANCEL)
-            dlg.ShowModal()
-            dlg.Destroy()
-
-    def process_header_row(self, row):
-        self.column_name_to_idx = {}
-        self.column_idx_to_name = {}
+    def show_headers(self):
         display_row = []
-        for n, header in enumerate(row):
-            self.column_idx_to_name[n] = header
-            self.column_name_to_idx[header] = n
-        validate_header_row(row)
-        for n, header in enumerate(DISPLAY_COLUMNS):
-            display_header = COLUMN_MAP[row[self.column_name_to_idx[header]]]
+        for n, header in enumerate(REQUIRED_COLUMNS):
+            display_header = COLUMN_DISPLAY_MAP[header]
             self.student_panel.InsertColumn(n, display_header)
             display_row.append(display_header)
-        self.headers = display_row
+        # Update ColumnSorterMixin column count
+        self.student_panel.SetColumnCount(len(REQUIRED_COLUMNS))
 
-    def process_data_row(self, row_num, row):
-        person = self.create_person(row)
-        self.add_to_family(person)
-        for class_name in person[CLASSES_COL]:
-            self.classes.add(class_name)
-        if display_filter(person):
-            for c, column in enumerate(DISPLAY_COLUMNS):
-                col_value = transform(column, person[column],
-                                      DISPLAY_TRANSFORMS)
+    def show_families(self, families):
+        row_num = 0
+        for family in families.values():
+            row_num = self.show_students(row_num, get_students(family))
+        self.families = families
+
+        self.student_panel.SortListItems(1)
+
+        self.show_classes()
+
+        self.button_generate.Enable()
+        self.button_email.Enable()
+        self.button_import.Enable()
+        self.button_export.Enable()
+
+    def show_students(self, row_num, students):
+        for student in students:
+            for class_name in student[Column.CLASSES]:
+                self.classes.add(class_name)
+            for c, column in enumerate(REQUIRED_COLUMNS):
+                col_value = transform(column, student[column], DISPLAY_TRANSFORMS)
                 if c == 0:
                     self.student_panel.InsertItem(row_num, col_value)
                 else:
@@ -350,46 +244,65 @@ class DataPanel(wx.Panel):
             row_num += 1
         return row_num
 
-    def add_to_family(self, person):
-        family_id = person[FAMILY_ID_COL]
-        try:
-            if person[MEMBER_TYPE_COL].lower() == 'parent':
-                self.families[family_id]['parents'].append(person)
-            else:
-                self.families[family_id]['students'].append(person)
-        except KeyError:
-            self.families[family_id] = {
-                'id': family_id,
-                'last_name': person[LAST_NAME_COL],
-                'parents': [],
-                'students': [],
-            }
-            self.add_to_family(person)
-
-    def create_person(self, row):
-        person = {}
-        for n, column in enumerate(row):
-            col_name = self.column_idx_to_name[n]
-            person[col_name] = column
-        for col_name, value in person.items():
-            person[col_name] = transform(col_name, value, PARSE_TRANSFORMS)
-        validate_person(person)
-        return person
-
-    def process_classes(self):
+    def show_classes(self):
         self.fee_panel.InsertColumn(0, 'Class')
         self.fee_panel.InsertColumn(1, 'Teacher')
         self.fee_panel.InsertColumn(2, 'Fee')
+
         for n, class_name in enumerate(sorted(self.classes)):
             self.fee_panel.InsertItem(n, class_name)
             # Add blank data values for the 2nd and 3rd columns
             self.fee_panel.SetItem(n, 1, '')
             self.fee_panel.SetItem(n, 2, '')
-            self.class_to_fee_map[class_name] = ['', '']
+
         self.fee_panel.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
+
         # Update ColumnSorterMixin column count
         self.fee_panel.SetColumnCount(3)
         self.fee_panel.SortListItems(0)
+
+    def on_export(self, event=None):
+        dirname = ''
+        file_dialog = wx.FileDialog(parent=self.parent,
+                                    message="Export fee schedule to CSV",
+                                    defaultDir=dirname,
+                                    defaultFile="",
+                                    wildcard="*.csv",
+                                    style=wx.FD_SAVE)
+        if file_dialog.ShowModal() == wx.ID_OK:
+            filename = file_dialog.GetFilename()
+            dirname = file_dialog.GetDirectory()
+            try:
+                with open(os.path.join(dirname, filename), 'w') as f:
+                    csv_writer = csv.writer(f)
+                    for r in range(self.fee_panel.GetListCtrl().GetItemCount()):
+                        row = [self.fee_panel.GetListCtrl().GetItem(r, c).GetText() for
+                               c in range(self.fee_panel.GetListCtrl().GetColumnCount())]
+                        csv_writer.writerow(row)
+            except Exception as e:
+                self.error_msg = "Error while exporting fee schedule: " + str(e)
+                traceback.print_exc()
+        file_dialog.Destroy()
+        self.check_error()
+
+    def on_import(self, event=None):
+        dirname = ''
+        file_dialog = wx.FileDialog(parent=self.parent,
+                                    message="Choose a fee schedule CSV file",
+                                    defaultDir=dirname,
+                                    defaultFile="",
+                                    wildcard="*.csv",
+                                    style=wx.FD_OPEN)
+        if file_dialog.ShowModal() == wx.ID_OK:
+            filename = file_dialog.GetFilename()
+            dirname = file_dialog.GetDirectory()
+            try:
+                self.load_fee_schedule(os.path.join(dirname, filename))
+            except Exception as e:
+                self.error_msg = "Error while reading fee schedule: " + str(e)
+                traceback.print_exc()
+        file_dialog.Destroy()
+        self.check_error()
 
     def on_generate(self, event=None):
         progress = wx.ProgressDialog("Generating Invoices",
@@ -400,11 +313,13 @@ class DataPanel(wx.Panel):
                                      )
         start_thread(self.generate_invoices, progress)
         progress.ShowModal()
+        self.check_error()
 
     def on_email(self, event=None):
         # message = self.get_subject()
         # message = self.get_message()
-        frame = ui.EmailInfoWindow(self, 'Email Info')
+        frame = ui.EmailInfoWindow(self, wx.ID_ANY, 'Email Info')
+        frame.ShowModal()
         return
         progress = wx.ProgressDialog("Emailing Invoices",
                                      "Please wait...\n\n"
@@ -418,24 +333,30 @@ class DataPanel(wx.Panel):
 
     def generate_invoices(self, progress):
         n = 1
-        for family_id, family in self.families.items():
-            if progress.WasCancelled():
-                break
-            msg = "Please wait...\n\n" \
-                  "Generating invoice for family: {fam}".format(fam=family['last_name'])
-            wx.CallAfter(progress.Update, n - 1, newmsg=msg)
-            if get_students(family):
-                with open('invoice{:03}.pdf'.format(n), 'wb') as f:
-                    f.write(self.create_invoice(family))
-                    n += 1
+        try:
+            class_map = self.validate_fee_schedule()
+            for family_id, family in self.families.items():
+                if progress.WasCancelled():
+                    break
+                msg = "Please wait...\n\n" \
+                      "Generating invoice for family: {fam}".format(fam=family['last_name'])
+                wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+                if get_students(family):
+                    with open('invoice{:03}.pdf'.format(n), 'wb') as f:
+                        f.write(self.create_invoice(family, class_map))
+                        n += 1
+        except Exception as e:
+            self.error_msg = "Error while generating invoices: " + str(e)
+            traceback.print_exc()
         wx.CallAfter(progress.EndModal, 0)
         wx.CallAfter(progress.Destroy)
 
     def email_invoices(self, message, progress):
-        gmail_service = mail.get_gmail_service()
-        profile = gmail_service.users().getProfile(userId='me').execute()
-        sender = profile['emailAddress']
         try:
+            class_map = self.validate_fee_schedule()
+            gmail_service = mail.get_gmail_service()
+            profile = gmail_service.users().getProfile(userId='me').execute()
+            sender = profile['emailAddress']
             n = 1
             for family_id, family in self.families.items():
                 if progress.WasCancelled():
@@ -444,9 +365,9 @@ class DataPanel(wx.Panel):
                       "Emailing invoice for family: {fam}".format(fam=family['last_name'])
                 wx.CallAfter(progress.Update, n - 1, newmsg=msg)
                 if get_students(family):
-                    pdf_attachment = self.create_invoice(family)
+                    pdf_attachment = self.create_invoice(family, class_map)
                     n += 1
-                    recipients = [p[EMAIL_COL] for p in family['parents']]
+                    recipients = [p[Column.EMAIL] for p in family['parents']]
                     if recipients:
                         msg = mail.create_message_with_attachment(sender=sender, recipients=recipients,
                                                                   subject='Class Enrollment Invoice',
@@ -456,68 +377,72 @@ class DataPanel(wx.Panel):
         except Exception as e:
             self.error_msg = "Error while sending email: " + str(e)
             traceback.print_exc()
+        print('here')
         wx.CallAfter(progress.EndModal, 0)
         wx.CallAfter(progress.Destroy)
 
-    def on_save(self, event=None):
-        dirname = ''
-        file_dialog = wx.FileDialog(parent=self.parent,
-                                    message="Save fee schedule",
-                                    defaultDir=dirname,
-                                    defaultFile="",
-                                    wildcard="*.csv",
-                                    style=wx.FD_SAVE)
-        if file_dialog.ShowModal() == wx.ID_OK:
-            filename = file_dialog.GetFilename()
-            dirname = file_dialog.GetDirectory()
-            with open(os.path.join(dirname, filename), 'w') as f:
-                csv_writer = csv.writer(f)
-                for class_name in sorted(self.class_to_fee_map):
-                    row = [class_name] + self.class_to_fee_map[class_name]
-                    csv_writer.writerow(row)
-        file_dialog.Destroy()
-
-    def on_import(self, event=None):
-        dirname = ''
-        file_dialog = wx.FileDialog(parent=self.parent,
-                                    message="Choose a fee schedule CSV file",
-                                    defaultDir=dirname,
-                                    defaultFile="",
-                                    wildcard="*.csv",
-                                    style=wx.FD_OPEN)
-        if file_dialog.ShowModal() == wx.ID_OK:
-            filename = file_dialog.GetFilename()
-            dirname = file_dialog.GetDirectory()
-            self.load_fee_schedule(os.path.join(dirname, filename))
-        file_dialog.Destroy()
-
     def load_fee_schedule(self, path):
+        # First, build a map of class name to row number on the displayed fee schedule
+        class_to_row = {}
+        for r in range(self.fee_panel.GetListCtrl().GetItemCount()):
+            class_name = self.fee_panel.GetListCtrl().GetItem(r, 0).GetText()
+            class_to_row[class_name] = r
+
+        # Now open the fee schedule CSV and process its rows
         with open(path, 'r') as f:
             reader = csv.reader(f)
+            r = 0
             for row in reader:
-                self.process_fee_schedule_row(row)
-        self.validate_fee_schedule()
+                try:
+                    row = validate_fee_schedule_row(r, row)
+                    display_row_num = class_to_row[row[0]]
+                    self.fee_panel.SetItem(display_row_num, 1, row[1])
+                    self.fee_panel.SetItem(display_row_num, 2, row[2])
+                except KeyError:
+                    # Ignore classes that are not needed for any registered student
+                    pass
+                except RuntimeError:
+                    # Ignore validation error on first row, as it may be a header row
+                    if r != 0:
+                        raise
+                r += 1
+        self.fee_panel.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
+        self.fee_panel.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
+        self.fee_panel.Refresh()
 
-    def create_invoice(self, family):
+    def validate_fee_schedule(self):
+        class_map = {}
+        missing_classes = []
+        for r in range(self.fee_panel.GetListCtrl().GetItemCount()):
+            class_name = self.fee_panel.GetListCtrl().GetItem(r, 0).GetText()
+            teacher = self.fee_panel.GetListCtrl().GetItem(r, 1).GetText()
+            fee = self.fee_panel.GetListCtrl().GetItem(r, 2).GetText()
+            if not teacher or not fee:
+                missing_classes.append(class_name)
+            else:
+                class_map[class_name] = (teacher, Decimal(fee))
+        if missing_classes:
+            msg = 'Classes have missing teacher or fee:\n  ' + '\n  '.join(missing_classes)
+            raise RuntimeError(msg)
+        return class_map
+
+    def create_invoice(self, family, class_map):
         invoice = {}
         parents = get_parents(family)
         students = get_students(family)
         invoice['parent'] = []
         for parent in parents:
             invoice['parent'].append([
-                parent[LAST_NAME_COL] + ', ' + parent[FIRST_NAME_COL],
-                parent[EMAIL_COL]])
-        invoice['max_class_width'] = max([len(s) for s in self.classes])
-        invoice['max_teacher_width'] = max(
-            [len(fee[0]) for k, fee in self.class_to_fee_map.items()])
+                parent[Column.LAST_NAME] + ', ' + parent[Column.FIRST_NAME],
+                parent[Column.EMAIL]])
         payable = {}
         invoice['students'] = {}
         invoice['total'] = Decimal(0.00)
         for student in students:
-            name = student[LAST_NAME_COL] + ', ' + student[FIRST_NAME_COL]
+            name = student[Column.LAST_NAME] + ', ' + student[Column.FIRST_NAME]
             invoice['students'][name] = []
-            for class_name in student[CLASSES_COL]:
-                teacher, fee = self.lookup_class(class_name)
+            for class_name in student[Column.CLASSES]:
+                teacher, fee = class_map[class_name]
                 invoice['students'][name].append([class_name, teacher, fee])
                 invoice['total'] += fee
                 try:
@@ -527,54 +452,11 @@ class DataPanel(wx.Panel):
         invoice['payable'] = payable
         return pdf.generate(invoice, 'invoice.pdf')
 
-    def process_fee_schedule_row(self, fee_schedule_row):
-        if len(fee_schedule_row) < 3 or not fee_schedule_row[1] or not validate_currency(fee_schedule_row[2]):
-            return
-        self.class_to_fee_map[fee_schedule_row[0]] = [fee_schedule_row[1],
-                                                      validate_currency(
-                                                          fee_schedule_row[2])]
-
-    def validate_fee_schedule(self):
-        missing_classes = []
-        for n, class_name in enumerate(self.classes):
-            try:
-                entry = self.class_to_fee_map[class_name]
-                self.fee_panel.SetItem(n, 1, entry[0])
-                self.fee_panel.SetItem(n, 2, entry[1])
-            except KeyError:
-                missing_classes.append(class_name)
-        self.fee_panel.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
-        self.fee_panel.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
-        self.fee_panel.Refresh()
-        if missing_classes:
-            msg = 'Missing classes:\n  ' + '\n  '.join(missing_classes)
-            dlg = wx.MessageDialog(self, msg, "Error", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-
-    def lookup_class(self, class_name):
-        """Look up the given class and return a 2-tuple (teacher, class_fee)."""
-        fee_entry = self.class_to_fee_map[class_name]
-        return fee_entry[0], fee_entry[1]
-
     def check_error(self):
         if self.error_msg:
-            caption = 'Warning'
+            caption = 'Error'
             dlg = wx.MessageDialog(self, self.error_msg,
                                    caption, wx.OK | wx.ICON_WARNING)
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
-
-    def get_message(self):
-        message = 'Enter the body of the email message to send to parents'
-        default_subject = app_config.conf.get(app_config.EMAIL_SUBJECT_KEY)
-        default_message = app_config.conf.get(app_config.EMAIL_MESSAGE_KEY)
-        dlg = wx.TextEntryDialog(self, message, caption='title0',
-                                 value=default_message, style=wx.OK | wx.CANCEL)
-        dlg.ShowModal()
-        # if dlg.
-        result = dlg.GetValue()
-        print('got body=', result)
-        dlg.Destroy()
-        return result

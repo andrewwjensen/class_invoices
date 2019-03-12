@@ -3,52 +3,40 @@ import wx
 BORDER_SIZE = 5
 
 
-class EmailInfoWindow(wx.Frame):
-    def __init__(self, parent, title):
-        super(EmailInfoWindow, self).__init__(parent, title=title, size=(600, 400))
+class EmailInfoWindow(wx.Dialog):
+    def __init__(self, parent, id=-1, title="Enter Name!"):
+        wx.Dialog.__init__(self, parent, id, title, size=(-1, -1))
 
-        panel = wx.Panel(self)
-        vbox = wx.BoxSizer(wx.VERTICAL)
+        self.mainSizer = wx.BoxSizer(wx.VERTICAL)
+        self.buttonSizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        subject_tag = wx.StaticText(panel, -1, "Email Subject Line")
+        self.label = wx.StaticText(self, label="Enter Name:")
+        self.field = wx.TextCtrl(self, value="", size=(300, 20))
+        self.ok_button = wx.Button(self, label="OK", id=wx.ID_OK)
+        self.cancel_button = wx.Button(self, label="Cancel", id=wx.ID_CANCEL)
 
-        vbox.Add(subject_tag, 0, wx.ALIGN_LEFT | wx.ALL, BORDER_SIZE)
-        self.subject_text_ctrl = wx.TextCtrl(panel)
+        self.mainSizer.Add(self.label, 0, wx.ALL, 8)
+        self.mainSizer.Add(self.field, 0, wx.ALL, 8)
 
-        vbox.Add(self.subject_text_ctrl, 0, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, BORDER_SIZE)
-        self.subject_text_ctrl.SetMaxLength(200)
-        self.subject_text_ctrl.Bind(wx.EVT_TEXT_MAXLEN, self.on_max_len)
+        self.buttonSizer.Add(self.ok_button, 0, wx.ALL, 8)
+        self.buttonSizer.Add(self.cancel_button, 0, wx.ALL, 8)
 
-        body_tag = wx.StaticText(panel, -1, "Email Body")
-        vbox.Add(body_tag, 0, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, BORDER_SIZE)
-        self.body_text_ctrl = wx.TextCtrl(panel, size=(500, 375), style=wx.TE_MULTILINE)
-        self.body_text_ctrl.SetMaxLength(2)
-        self.body_text_ctrl.Bind(wx.EVT_TEXT_MAXLEN, self.on_max_len)
-        vbox.Add(self.body_text_ctrl, 1, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, BORDER_SIZE)
+        self.mainSizer.Add(self.buttonSizer, 0, wx.ALL, 0)
 
-        button_panel = wx.Panel()
-        button_box = wx.BoxSizer()
-        # self.button_ok = wx.Button(button_panel, wx.ID_OK)
-        # button_box.Add(self.button_ok)
-        # self.Bind(wx.EVT_BUTTON, self.on_ok, self.button_ok)
-        #
-        # self.button_cancel = wx.Button(button_panel, wx.ID_CANCEL)
-        # self.Bind(wx.EVT_BUTTON, self.on_cancel, self.button_cancel)
-        # button_box.Add(self.button_cancel)
-        #
-        button_panel.SetSizer(button_box)
-        vbox.Add(button_box)
+        self.Bind(wx.EVT_BUTTON, self.on_ok, id=wx.ID_OK)
+        self.Bind(wx.EVT_TEXT_ENTER, self.on_ok)
 
-        panel.SetSizer(vbox)
+        self.Bind(wx.EVT_BUTTON, self.on_cancel, id=wx.ID_CANCEL)
 
-        self.Show()
-        self.Fit()
-
-    def on_max_len(self, event):
-        print("Maximum length reached")
+        self.SetSizer(self.mainSizer)
+        self.result = None
 
     def on_ok(self, event):
         print('ok')
+        self.result = self.field.GetValue()
+        self.Destroy()
 
     def on_cancel(self, event):
         print('cancel')
+        self.result = None
+        self.Destroy()

@@ -189,21 +189,37 @@ class EnrollmentPanel(wx.Panel):
 
     def on_email(self, event=None):
         subject = self.text_ctrl_email_subject.GetValue()
-        message = self.text_ctrl_email_body.GetValue()
-        progress = wx.ProgressDialog("Emailing Invoices",
-                                     "Please wait...\n\n"
-                                     "Emailing invoice for family:",
-                                     maximum=len(self.families), parent=self,
-                                     style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
-                                     )
-        start_thread(self.email_invoices, subject, message, progress)
-        progress.ShowModal()
+        body = self.text_ctrl_email_body.GetValue()
+        try:
+            if not subject.strip():
+                self.error_msg = 'Email subject may not be empty.'
+                self.text_ctrl_email_subject.SetFocus()
+            else:
+                if not body.strip():
+                    self.error_msg = 'Enter a message body before sending email.'
+                    self.text_ctrl_email_body.SetFocus()
+                else:
+                    progress = wx.ProgressDialog("Emailing Invoices",
+                                                 "Please wait...\n\n"
+                                                 "Emailing invoice for family:",
+                                                 maximum=len(self.families), parent=self,
+                                                 style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
+                                                 )
+                    start_thread(self.email_invoices, subject, body, progress)
+                    progress.ShowModal()
+        except Exception as e:
+            self.error_msg = "Error while sending email: " + str(e)
+            traceback.print_exc()
         self.check_error()
+        if not subject.strip():
+            self.text_ctrl_email_subject.SetFocus()
+        elif not body.strip():
+            self.text_ctrl_email_body.SetFocus()
 
-    def email_invoices(self, subject, message, progress):
+    def email_invoices(self, subject, body, progress):
         try:
             self.validate_fee_schedule()
-            send_emails(subject, message, self.families, self.class_map, progress)
+            send_emails(subject, body, self.families, self.class_map, progress)
         except KeyError as e:
             self.error_msg = "Missing teacher or fee for class while sending email: " + e.args[0]
             traceback.print_exc()

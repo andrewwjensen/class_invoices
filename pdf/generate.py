@@ -82,10 +82,10 @@ def generate_invoices(self, progress):
             if progress.WasCancelled():
                 break
             msg = "Please wait...\n\n" \
-                  "Generating invoice for family: {fam}".format(fam=family['last_name'])
+                f"Generating invoice for family: {family['last_name']}"
             wx.CallAfter(progress.Update, n - 1, newmsg=msg)
             if get_students(family):
-                with open('invoice{:03}.pdf'.format(n), 'wb') as f:
+                with open(f'invoice{n:03}.pdf', 'wb') as f:
                     f.write(create_invoice(family, class_map))
                     n += 1
     except Exception as e:
@@ -99,15 +99,12 @@ def generate_table_row_rml(elements, style=None):
     style_open = ''
     style_close = ''
     if style is not None:
-        style_open = '<para style="{style}">'.format(style=style)
+        style_open = f'<para style="{style}">'
         style_close = '</para>'
 
     row = '<tr>\n'
     for elt in elements:
-        row += '<td>{style_open}{cell}{style_close}</td>\n'.format(
-            style_open=style_open,
-            style_close=style_close,
-            cell=elt)
+        row += f'<td>{style_open}{elt}{style_close}</td>\n'
     row += '</tr>\n'
     return row
 

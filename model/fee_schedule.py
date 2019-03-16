@@ -5,11 +5,11 @@ from model.parse import validate_currency
 
 def validate_fee_schedule_row(r, row):
     if len(row) < 3:
-        raise RuntimeError('Too few columns in fee schedule on row {}: {}'.format(r + 1, row))
+        raise RuntimeError(f'Too few columns in fee schedule on row {r + 1}: {row}')
     if not row[1]:
-        raise RuntimeError('Empty teacher in row {}, column 2 of fee schedule'.format(r + 1))
+        raise RuntimeError(f'Empty teacher in row {r + 1}, column 2 of fee schedule')
     if not validate_currency(row[2]):
-        raise RuntimeError('Invalid currency in row {}, column 3 of fee schedule: {}'.format(r + 1, row[2]))
+        raise RuntimeError(f'Invalid currency in row {r + 1}, column 3 of fee schedule: {row[2]}')
     return [row[0], row[1], validate_currency(row[2])]
 
 

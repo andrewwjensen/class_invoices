@@ -1,6 +1,7 @@
 import base64
 import os
 import pickle
+import uuid
 from email import errors
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -71,14 +72,14 @@ def get_gmail_service():
     return build('gmail', 'v1', credentials=credentials)
 
 
-def create_message_with_attachment(sender, recipients, subject, message_text, data):
+def create_message_with_attachment(sender, recipients, subject, body, data):
     """Create a message for an email.
 
     Args:
       sender: Email address of the sender.
       recipients: List of email addresses to receive the message.
       subject: The subject of the email message.
-      message_text: The text of the email message.
+      body: The text of the email message.
       data: The contents of the attachment.
 
     Returns:
@@ -90,12 +91,13 @@ def create_message_with_attachment(sender, recipients, subject, message_text, da
     message['from'] = sender
     message['subject'] = subject
 
-    body = MIMEText(message_text)
+    body = MIMEText(body)
     message.attach(body)
 
     # For our purposes, assume PDF data
     attachment = MIMEApplication(data, _subtype='pdf')
-    attachment.add_header('Content-Disposition', 'attachment', filename='invoice.pdf')
+    attachment.add_header('X-Attachment-Id', f'class-invoices-{uuid.uuid4()}')
+    attachment.add_header('Content-Disposition', 'attachment', filename='class_invoice.pdf')
     message.attach(attachment)
 
     return {'raw': str(base64.urlsafe_b64encode(message.as_bytes()).decode())}
@@ -138,11 +140,11 @@ def create_draft(service, user_id, message_body):
         draft = service.users().drafts().create(userId=user_id, body=message).execute()
         return draft
     except errors.MessageError as e:
-        print('An error occurred: {}'.format(e))
+        print(f'An error occurred: {e}')
         return None
 
 
-def send_emails(subject, message, families, class_map, progress):
+def send_emails(subject, body, families, class_map, progress):
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
@@ -151,7 +153,7 @@ def send_emails(subject, message, families, class_map, progress):
         if progress.WasCancelled():
             break
         msg = "Please wait...\n\n" \
-              "Emailing invoice for family: {fam}".format(fam=family['last_name'])
+            f"Emailing invoice for family: {family['last_name']}"
         wx.CallAfter(progress.Update, n - 1, newmsg=msg)
         if get_students(family):
             pdf_attachment = create_invoice(family, class_map)
@@ -161,7 +163,7 @@ def send_emails(subject, message, families, class_map, progress):
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
                                                      subject=subject,
-                                                     message_text=message,
+                                                     body=body,
                                                      data=pdf_attachment)
                 print('msg:', msg)
                 draft = create_draft(gmail_service, 'me', msg)

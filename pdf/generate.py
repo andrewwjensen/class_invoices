@@ -77,7 +77,7 @@ def pad_str(s, n):
 def generate_invoices(self, progress):
     n = 1
     try:
-        class_map = self.validate_fee_schedule()
+        class_map = self.get_class_map()
         for family in self.families.values():
             if progress.WasCancelled():
                 break

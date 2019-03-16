@@ -15,12 +15,12 @@ class MainFrame(wx.Frame):
         wx.Frame.__init__(self, *args, **kwargs)
 
         # Add the Widget Panel
-        self.data_panel = ui.ApplicationPanel(self, wx.ID_ANY)
+        self.application_panel = ui.ApplicationPanel(self, wx.ID_ANY)
         self.SetBackgroundColour('white')
 
         # Build the menu bar
         menu_bar = wx.MenuBar()
-        menu_bar.Append(ui.menu.FileMenu(self, self.data_panel), "&File")
+        menu_bar.Append(ui.menu.FileMenu(self), "&File")
         # menu_bar.Append(ui.menu.EditMenu(self), "&Edit")
         menu_bar.Append(ui.menu.HelpMenu(self), "&Help")
         self.SetMenuBar(menu_bar)
@@ -35,14 +35,24 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
     def set_splitter_width(self):
-        width = self.data_panel.splitter.GetSize()[0]
-        self.data_panel.splitter.SetSashPosition(width / 2)
+        width = self.application_panel.splitter.GetSize()[0]
+        self.application_panel.splitter.SetSashPosition(width / 2)
+
+    def on_open(self):
+        print('open')
+
+    def on_save(self):
+        print('save')
 
     def on_close(self, event=None):
-        dlg = wx.MessageDialog(self,
-                               "Do you really want to close this application?",
-                               "Confirm Exit", wx.OK | wx.CANCEL | wx.ICON_QUESTION)
-        result = dlg.ShowModal()
-        dlg.Destroy()
-        if result == wx.ID_OK:
+        if not self.application_panel.is_modified():
             self.Destroy()
+        else:
+            dlg = wx.MessageDialog(parent=self,
+                                   message="There are unsaved changes. Do you really want to close this application?",
+                                   caption="Unsaved Changes",
+                                   style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
+            result = dlg.ShowModal()
+            dlg.Destroy()
+            if result == wx.ID_OK:
+                self.Destroy()

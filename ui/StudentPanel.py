@@ -1,10 +1,9 @@
-from ui.AutoWidthListCtrl import AutoWidthListCtrl
 from ui.ListSorterPanel import ListSorterPanel
 
 
 class StudentPanel(ListSorterPanel):
     def __init__(self, parent, my_id, *args, **kwargs):
-        super().__init__(parent, my_id, AutoWidthListCtrl, [1, 2], *args, **kwargs)
+        super().__init__(parent, my_id, *args, **kwargs)
         self.SetMinSize((400, 100))
 
 
@@ -17,10 +16,12 @@ def show_headers(self):
     # Update ColumnSorterMixin column count
     self.student_panel.SetColumnCount(len(REQUIRED_COLUMNS))
 
+
 def show_families(self, families):
     self.student_panel.SortListItems(1)
 
     self.show_classes()
+
 
 def show_students(students):
     for student in students:

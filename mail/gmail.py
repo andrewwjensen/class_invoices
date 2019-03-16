@@ -90,13 +90,13 @@ def create_message_with_attachment(sender, recipients, subject, message_text, da
     message['from'] = sender
     message['subject'] = subject
 
-    msg = MIMEText(message_text)
-    message.attach(msg)
+    body = MIMEText(message_text)
+    message.attach(body)
 
     # For our purposes, assume PDF data
-    msg = MIMEApplication(data, _subtype='pdf')
-    msg.add_header('Content-Disposition', 'attachment', filename='invoice.pdf')
-    message.attach(msg)
+    attachment = MIMEApplication(data, _subtype='pdf')
+    attachment.add_header('Content-Disposition', 'attachment', filename='invoice.pdf')
+    message.attach(attachment)
 
     return {'raw': str(base64.urlsafe_b64encode(message.as_bytes()).decode())}
 
@@ -114,7 +114,7 @@ def send_message(service, user_id, message):
       Sent Message.
     """
     try:
-        message = (service.users().messages().send(userId=user_id, body=message).execute())
+        message = service.users().messages().send(userId=user_id, body=message).execute()
         print('Message Id: %s' % message['id'])
         return message
     except errors.HttpError as error:
@@ -122,7 +122,7 @@ def send_message(service, user_id, message):
 
 
 def create_draft(service, user_id, message_body):
-    """Create and insert a draft email. Print the returned draft's message and id.
+    """Create and insert a draft email.
 
     Args:
       service: Authorized Gmail API service instance.
@@ -134,12 +134,8 @@ def create_draft(service, user_id, message_body):
       Draft object, including draft id and message meta data.
     """
     try:
-        draft = None  # TODO
-        # message = {'message': message_body}
-        # draft = service.users().drafts().create(userId=user_id, body=message).execute()
-        # draft['id'] = 'r-1943780435138709657'
-        # draft['message'] = {'id': '1696980219206a02', 'threadId': '1696980219206a02', 'labelIds': ['DRAFT']}
-
+        message = {'message': message_body}
+        draft = service.users().drafts().create(userId=user_id, body=message).execute()
         return draft
     except errors.MessageError as e:
         print('An error occurred: {}'.format(e))
@@ -168,4 +164,5 @@ def send_emails(subject, message, families, class_map, progress):
                                                      message_text=message,
                                                      data=pdf_attachment)
                 print('msg:', msg)
-                create_draft(gmail_service, 'me', msg)
+                draft = create_draft(gmail_service, 'me', msg)
+                print('draft:', draft)

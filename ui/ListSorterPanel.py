@@ -2,25 +2,30 @@ import wx
 from wx.lib.mixins import listctrl as listmix
 
 import images
+from ui.AutoWidthListCtrl import AutoWidthEditableListCtrl
 
 
 # noinspection PyPep8Naming
 class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
+
+    def is_modified(self):
+        return self.modified
+
     def GetListCtrl(self):
         return self.list_ctrl
 
     def GetSortImages(self):
         return self.sm_dn, self.sm_up
 
-    def __init__(self, parent, my_id, listctl_class, editable_columns=None, *args, **kwargs):
+    def __init__(self, parent, my_id, editable_columns=None, *args, **kwargs):
         """Create the main panel."""
         wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
         if editable_columns is not None:
             kwargs['editable_columns'] = editable_columns
-        self.list_ctrl = listctl_class(self, wx.ID_ANY,
-                                       style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
-                                       size=(1, 150),
-                                       **kwargs)
+        self.list_ctrl = AutoWidthEditableListCtrl(self, wx.ID_ANY,
+                                                   style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
+                                                   size=(1, 150),
+                                                   **kwargs)
         self.editable_columns = editable_columns
 
         #######################################################################
@@ -34,6 +39,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
 
         self.columns = set()  # Column names
         self.column = []  # Columns of data
+        self.modified = False
 
     def clear(self):
         self.list_ctrl.DeleteAllItems()

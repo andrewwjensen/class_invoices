@@ -1,29 +1,31 @@
 import csv
 import os
 import traceback
+from decimal import Decimal
 
 import wx
+import wx.lib.newevent
 
+from model.family import get_classes
 from model.fee_schedule import read_fee_schedule
-from ui.AutoWidthListCtrl import AutoWidthEditableListCtrl
 from ui.ListSorterPanel import ListSorterPanel
 
 DEFAULT_BORDER = 5
 
 
 class FeeSchedulePanel(ListSorterPanel):
+    ImportFeeScheduleEvent, EVT_FEE_SCHEDULE_IMPORTED = wx.lib.newevent.NewEvent()
 
     def __init__(self, parent, border=DEFAULT_BORDER, *args, **kwargs):
         ListSorterPanel.__init__(self,
                                  parent=parent,
                                  my_id=wx.ID_ANY,
-                                 listctl_class=AutoWidthEditableListCtrl,
                                  editable_columns=[1, 2],
                                  *args, **kwargs)
         self.button_import = wx.Button(self, wx.ID_ANY, "Import Fee Schedule...")
         self.button_export = wx.Button(self, wx.ID_ANY, "Export Fee Schedule...")
-        self.parent = parent
         self.__do_layout(border)
+        self.error_msg = None
 
     def __do_layout(self, border):
         sizer_fee_table = wx.BoxSizer(wx.VERTICAL)
@@ -42,9 +44,12 @@ class FeeSchedulePanel(ListSorterPanel):
         self.button_import.Disable()
         self.button_export.Disable()
 
+    def is_modified(self):
+        return self.list_ctrl.is_modified()
+
     def on_import(self, event=None):
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self.parent,
+        file_dialog = wx.FileDialog(parent=self,
                                     message="Choose a fee schedule CSV file",
                                     defaultDir=dirname,
                                     defaultFile="",
@@ -54,18 +59,18 @@ class FeeSchedulePanel(ListSorterPanel):
             filename = file_dialog.GetFilename()
             dirname = file_dialog.GetDirectory()
             try:
-                fee_schedule_filename = os.path.join(dirname, filename)
-                fee_schedule = read_fee_schedule(fee_schedule_filename)
-                self.show_fee_schedule(fee_schedule)
+                fee_schedule_path = os.path.join(dirname, filename)
+                self.load_fee_schedule(fee_schedule_path)
+                self.modified = True
             except Exception as e:
-                self.parent.error_msg = "Error while reading fee schedule: " + str(e)
+                self.error_msg = "Error while reading fee schedule: " + str(e)
                 traceback.print_exc()
         file_dialog.Destroy()
         self.check_error()
 
     def on_export(self, event=None):
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self.parent,
+        file_dialog = wx.FileDialog(parent=self,
                                     message="Export fee schedule to CSV",
                                     defaultDir=dirname,
                                     defaultFile="",
@@ -86,6 +91,12 @@ class FeeSchedulePanel(ListSorterPanel):
                 traceback.print_exc()
         file_dialog.Destroy()
         self.check_error()
+
+    def load_fee_schedule(self, path):
+        fee_schedule = read_fee_schedule(path)
+        self.show_fee_schedule(fee_schedule)
+        event = self.ImportFeeScheduleEvent()
+        wx.PostEvent(self.GetEventHandler(), event)
 
     def show_fee_schedule(self, fee_schedule):
         # First, build a map of class name to row number on the displayed fee schedule
@@ -111,3 +122,39 @@ class FeeSchedulePanel(ListSorterPanel):
     def enable_buttons(self, enable=True):
         self.button_import.Enable(enable)
         self.button_export.Enable(enable)
+
+    def populate_fee_schedule(self, families):
+        self.add_column('Class')
+        self.add_column('Teacher')
+        self.add_column('Fee')
+
+        for class_name in get_classes(families):
+            self.add_row([class_name, '', ''], dedup_col=0)
+
+        self.resize_column(0)
+        self.SortListItems(0)
+
+    def get_class_map(self):
+        class_map = {}
+        missing_classes = []
+        for r in range(self.GetListCtrl().GetItemCount()):
+            class_name = self.GetListCtrl().GetItem(r, 0).GetText()
+            teacher = self.GetListCtrl().GetItem(r, 1).GetText()
+            fee = self.GetListCtrl().GetItem(r, 2).GetText()
+            if not teacher or not fee:
+                missing_classes.append(class_name)
+            else:
+                class_map[class_name] = (teacher, Decimal(fee))
+        if missing_classes:
+            msg = 'Classes have missing teacher or fee:\n  ' + '\n  '.join(missing_classes)
+            raise RuntimeError(msg)
+        return class_map
+
+    def check_error(self):
+        if self.error_msg:
+            caption = 'Error'
+            dlg = wx.MessageDialog(self, self.error_msg,
+                                   caption, wx.OK | wx.ICON_WARNING)
+            self.error_msg = None
+            dlg.ShowModal()
+            dlg.Destroy()

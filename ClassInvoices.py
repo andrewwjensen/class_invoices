@@ -10,9 +10,9 @@ def main():
     app = wx.App()
     frame = ui.MainFrame(None,
                          title=app_config.APP_NAME,
-                         size=(500, 400))
-    frame.Maximize()
-    frame.set_splitter_width()
+                         size=(1080, 700))
+    # frame.Maximize()
+    # frame.set_splitter_width()
     frame.Show()
     app.MainLoop()
 

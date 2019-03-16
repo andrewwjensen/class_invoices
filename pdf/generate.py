@@ -1,7 +1,14 @@
 import datetime
 import io
+import traceback
+from decimal import Decimal
 
+import wx
 from z3c.rml import rml2pdf
+
+from model.columns import Column
+from model.family import get_parents, get_students
+from pdf.my_bytes_io import MyBytesIO
 
 RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
 <document filename="invoice.pdf" invariant="1">
@@ -67,43 +74,25 @@ def pad_str(s, n):
     return s + '_' * (n - len(s))
 
 
-def generate_txt(invoice):
-    s = ['====================================================================']
-    for parent in invoice['parent']:
-        s.append('{:30}  {}'.format(parent[0], parent[1]))
-    s.append(' ')
-    max_teacher_width = invoice['max_teacher_width']
-    for student_name, classes in invoice['students'].items():
-        s.append('{:28}'.format(student_name))
-        for class_entry in classes:
-            class_name = class_entry[0]
-            teacher = class_entry[1]
-            class_fee = class_entry[2]
-            s.append('  {class_name} {teacher} ${fee:6.2f}'.format(
-                class_name=pad_str(class_name, invoice['max_class_width']),
-                teacher=pad_str(teacher, max_teacher_width),
-                fee=class_fee))
-    s.append(' ')
-    s.append('Make checks payable to:')
-    for teacher, fee in sorted(invoice['payable'].items()):
-        s.append('{teacher} ${fee:7.2f}'.format(
-            teacher=pad_str(teacher, max_teacher_width),
-            fee=fee
-        ))
-    return s
-
-
-class MyBytesIO(io.BytesIO):
-    """BytesIO wrapper to keep buffer after close() is called."""
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def close(self):
-        pass
-
-    def real_close(self):
-        io.BytesIO.close(self)
+def generate_invoices(self, progress):
+    n = 1
+    try:
+        class_map = self.validate_fee_schedule()
+        for family in self.families.values():
+            if progress.WasCancelled():
+                break
+            msg = "Please wait...\n\n" \
+                  "Generating invoice for family: {fam}".format(fam=family['last_name'])
+            wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+            if get_students(family):
+                with open('invoice{:03}.pdf'.format(n), 'wb') as f:
+                    f.write(create_invoice(family, class_map))
+                    n += 1
+    except Exception as e:
+        self.error_msg = "Error while generating invoices: " + str(e)
+        traceback.print_exc()
+    wx.CallAfter(progress.EndModal, 0)
+    wx.CallAfter(progress.Destroy)
 
 
 def generate_table_row_rml(elements, style=None):
@@ -152,7 +141,7 @@ def generate(invoice, filename):
     rml = RML_TEMPLATE.format(parents=parents_rml,
                               students=students_rml,
                               payables=payables_rml,
-                              num_classes=num_classes+1,
+                              num_classes=num_classes + 1,
                               date=now.strftime('%a %b %d, %Y'),
                               filename=filename)
     # print('rml:', rml)
@@ -164,3 +153,30 @@ def generate(invoice, filename):
     output_buf.real_close()
 
     return doc
+
+
+def create_invoice(family, class_map):
+    invoice = {}
+    parents = get_parents(family)
+    students = get_students(family)
+    invoice['parent'] = []
+    for parent in parents:
+        invoice['parent'].append([
+            parent[Column.LAST_NAME] + ', ' + parent[Column.FIRST_NAME],
+            parent[Column.EMAIL]])
+    payable = {}
+    invoice['students'] = {}
+    invoice['total'] = Decimal(0.00)
+    for student in students:
+        name = student[Column.LAST_NAME] + ', ' + student[Column.FIRST_NAME]
+        invoice['students'][name] = []
+        for class_name in student[Column.CLASSES]:
+            teacher, fee = class_map[class_name]
+            invoice['students'][name].append([class_name, teacher, fee])
+            invoice['total'] += fee
+            try:
+                payable[teacher] += fee
+            except KeyError:
+                payable[teacher] = fee
+    invoice['payable'] = payable
+    return generate(invoice, 'invoice.pdf')

@@ -32,25 +32,44 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.sm_dn = self.imageList.Add(images.SmallDnArrow.GetBitmap())
         self.list_ctrl.SetImageList(self.imageList, wx.IMAGE_LIST_SMALL)
 
+        self.columns = set()  # Column names
+        self.column = []  # Columns of data
+
     def clear(self):
         self.list_ctrl.DeleteAllItems()
         self.list_ctrl.DeleteAllColumns()
         self.itemDataMap = {}
+        self.columns = set()
+        self.column = []
 
-    def InsertItem(self, row, value):
+    def insert_item(self, row, value):
         self.list_ctrl.InsertItem(row, value)
         self.itemDataMap[row] = [value]
         self.list_ctrl.SetItemData(row, row)
+        self.column[0].add(value)
 
-    def SetItem(self, row, col, value):
+    def set_item(self, row, col, value):
         self.list_ctrl.SetItem(row, col, str(value))
+        self.column[col].add(value)
         if row in self.itemDataMap and col < len(self.itemDataMap[row]):
             self.itemDataMap[row][col] = value
         else:
             self.itemDataMap[row].append(value)
 
-    def SetColumnWidth(self, col, sz):
-        self.list_ctrl.SetColumnWidth(col, sz)
+    def add_row(self, row, dedup_col=None):
+        row_num = self.list_ctrl.GetItemCount()
+        if dedup_col is not None:
+            if row[dedup_col] in self.column[dedup_col]:
+                return
+        self.insert_item(row_num, row[0])
+        for col_num in range(1, len(row)):
+            self.set_item(row_num, col_num, row[col_num])
 
-    def InsertColumn(self, col, info):
-        self.list_ctrl.InsertColumn(col, info)
+    def resize_column(self, col):
+        self.list_ctrl.SetColumnWidth(col, wx.LIST_AUTOSIZE_USEHEADER)
+
+    def add_column(self, col_name):
+        if col_name not in self.columns:
+            self.list_ctrl.InsertColumn(len(self.columns), col_name)
+            self.columns.add(col_name)
+            self.column.append(set())

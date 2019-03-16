@@ -6,9 +6,14 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import wx
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+
+from model.columns import Column
+from model.family import get_students
+from pdf.generate import create_invoice
 
 PROJECT_ID = 'class-invoices'
 OAUTH_CLIENT_ID = '344465743544-80i03jq6qvshuva8gsd1o6558suotq4e.apps.googleusercontent.com'
@@ -139,3 +144,28 @@ def create_draft(service, user_id, message_body):
     except errors.MessageError as e:
         print('An error occurred: {}'.format(e))
         return None
+
+
+def send_emails(subject, message, families, class_map, progress):
+    gmail_service = get_gmail_service()
+    profile = gmail_service.users().getProfile(userId='me').execute()
+    sender = profile['emailAddress']
+    n = 1
+    for family in families.values():
+        if progress.WasCancelled():
+            break
+        msg = "Please wait...\n\n" \
+              "Emailing invoice for family: {fam}".format(fam=family['last_name'])
+        wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+        if get_students(family):
+            pdf_attachment = create_invoice(family, class_map)
+            n += 1
+            recipients = [p[Column.EMAIL] for p in family['parents']]
+            if recipients:
+                msg = create_message_with_attachment(sender=sender,
+                                                     recipients=recipients,
+                                                     subject=subject,
+                                                     message_text=message,
+                                                     data=pdf_attachment)
+                print('msg:', msg)
+                create_draft(gmail_service, 'me', msg)

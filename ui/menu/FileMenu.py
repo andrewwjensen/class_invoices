@@ -11,7 +11,7 @@ class FileMenu(wx.Menu):
         self.data_panel = data_panel
 
         item = self.Append(wx.ID_OPEN, "&Open...\tCtrl-O", "Open new CSV file")
-        self.Bind(wx.EVT_MENU, self.data_panel.on_open, item)
+        self.Bind(wx.EVT_MENU, self.on_open, item)
         self.add_recent_files()
 
         item = self.Append(wx.ID_CLOSE, "&Close\tCtrl-W", "Close window and quit application")
@@ -25,7 +25,12 @@ class FileMenu(wx.Menu):
 
     def on_quit(self, event=None):
         """Exit application."""
-        self.parent.Close()
+        print('quit')
+        self.parent.on_close()
+
+    def on_open(self, event=None):
+        """Exit application."""
+        print('open')
 
     def add_recent_files(self):
         recent_files = app_config.conf.get(app_config.RECENT_FILES_KEY)

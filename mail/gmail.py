@@ -1,7 +1,6 @@
 import base64
 import os
 import pickle
-import uuid
 from email import errors
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -96,8 +95,11 @@ def create_message_with_attachment(sender, recipients, subject, body, data):
 
     # For our purposes, assume PDF data
     attachment = MIMEApplication(data, _subtype='pdf')
-    attachment.add_header('X-Attachment-Id', f'class-invoices-{uuid.uuid4()}')
-    attachment.add_header('Content-Disposition', 'attachment', filename='class_invoice.pdf')
+    filename = 'class_invoice.pdf'
+    # For some reason, must set this for PDF to appear correctly in Apple Mail. Without it, the
+    # 'Content-ID' and 'X-Attachment-Id' headers appear but are empty, apparently causing the issue.
+    attachment.add_header('X-Attachment-Id', filename)
+    attachment.add_header('Content-Disposition', 'attachment', filename=filename)
     message.attach(attachment)
 
     return {'raw': str(base64.urlsafe_b64encode(message.as_bytes()).decode())}
@@ -117,7 +119,6 @@ def send_message(service, user_id, message):
     """
     try:
         message = service.users().messages().send(userId=user_id, body=message).execute()
-        print('Message Id: %s' % message['id'])
         return message
     except errors.HttpError as error:
         print('An error occurred: %s' % error)
@@ -165,6 +166,4 @@ def send_emails(subject, body, families, class_map, progress):
                                                      subject=subject,
                                                      body=body,
                                                      data=pdf_attachment)
-                print('msg:', msg)
-                draft = create_draft(gmail_service, 'me', msg)
-                print('draft:', draft)
+                create_draft(gmail_service, 'me', msg)

@@ -53,7 +53,12 @@ class EmailPanel(wx.Panel):
         return 'Email'
 
     def is_modified(self):
-        return self.modified
+        return self.modified or self.text_ctrl_email_body.IsModified() or self.text_ctrl_email_subject.IsModified()
+
+    def set_is_modified(self, modified=True):
+        self.modified = modified
+        self.text_ctrl_email_body.SetModified(modified)
+        self.text_ctrl_email_subject.SetModified(modified)
 
     def enable_buttons(self, enable=True):
         self.button_email_invoices.Enable(enable)
@@ -126,3 +131,13 @@ class EmailPanel(wx.Panel):
                         missing_fees.append(class_name)
         if missing_fees:
             raise RuntimeError('missing teacher or fee for classes:\n    ' + '\n    '.join(missing_fees))
+
+    def get_data(self):
+        return {
+            'subject': self.text_ctrl_email_subject.GetValue(),
+            'body': self.text_ctrl_email_body.GetValue(),
+        }
+
+    def load_data(self, data):
+        self.text_ctrl_email_subject.SetValue(data['subject'])
+        self.text_ctrl_email_body.SetValue(data['body'])

@@ -67,7 +67,12 @@ class EnrollmentPanel(wx.Panel):
         self.SetSizer(sizer_enrollment_split)
 
     def is_modified(self):
-        return self.modified
+        return self.modified or self.pdf_tab_panel.is_modified() or self.email_tab_panel.is_modified()
+
+    def set_is_modified(self, modified=True):
+        self.modified = modified
+        self.pdf_tab_panel.set_is_modified(modified)
+        self.email_tab_panel.set_is_modified(modified)
 
     def get_families(self):
         return self.families
@@ -102,6 +107,9 @@ class EnrollmentPanel(wx.Panel):
 
     def load_enrollment_data(self, path):
         self.families = load_families(path)
+        self.refresh()
+
+    def refresh(self):
         self.set_stats()
         event = self.EnrollmentDataEvent()
         wx.PostEvent(self.GetEventHandler(), event)
@@ -135,3 +143,16 @@ class EnrollmentPanel(wx.Panel):
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
+
+    def get_data(self):
+        return {
+            'families': self.families,
+            'pdf_tab': self.pdf_tab_panel.get_data(),
+            'email_tab': self.email_tab_panel.get_data(),
+        }
+
+    def load_data(self, data):
+        self.families = data['families']
+        self.refresh()
+        self.pdf_tab_panel.load_data(data['pdf_tab'])
+        self.email_tab_panel.load_data(data['email_tab'])

@@ -52,11 +52,6 @@ class ApplicationPanel(wx.Panel):
         self.sash_proportion = 0.5
         self.error_msg = None
 
-        # TODO: remove these
-        self.enrollment_panel.load_enrollment_data(os.path.expandvars('${HOME}/Downloads/member-list-sm.csv'))
-        wx.Yield()  # Give a chance to process EVT_ENROLLMENT_DATA_CHANGED
-        self.fee_schedule_panel.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
-
     def __set_properties(self):
         # begin wxGlade: MyFrame.__set_properties
         self.splitter.SetMinimumPaneSize(350)
@@ -73,8 +68,18 @@ class ApplicationPanel(wx.Panel):
         self.Layout()
         # end wxGlade
 
+    def load_test_data(self):
+        # self.enrollment_panel.load_enrollment_data(os.path.expandvars('${HOME}/Downloads/member-list-sm.csv'))
+        self.enrollment_panel.load_enrollment_data(os.path.expandvars('${HOME}/Downloads/member-list-micro.csv'))
+        wx.Yield()  # Give a chance to process EVT_ENROLLMENT_DATA_CHANGED
+        self.fee_schedule_panel.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
+
     def is_modified(self):
         return self.enrollment_panel.is_modified() or self.fee_schedule_panel.is_modified()
+
+    def set_is_modified(self, modified=True):
+        self.enrollment_panel.set_is_modified(modified)
+        self.fee_schedule_panel.set_is_modified(modified)
 
     def on_resize(self, event=None):
         """Window has been resized, so we need to adjust the sash based on self.proportion."""
@@ -99,3 +104,14 @@ class ApplicationPanel(wx.Panel):
     def enable_buttons(self):
         self.enrollment_panel.enable_buttons()
         self.fee_schedule_panel.enable_buttons()
+
+    def get_data(self):
+        return {
+            'enrollment': self.enrollment_panel.get_data(),
+            'fee_schedule': self.fee_schedule_panel.get_data(),
+        }
+
+    def load_data(self, data):
+        print(repr(data))
+        self.enrollment_panel.load_data(data['enrollment'])
+        self.fee_schedule_panel.load_data(data['fee_schedule'])

@@ -39,6 +39,9 @@ class PdfPanel(wx.Panel):
     def is_modified(self):
         return self.modified
 
+    def set_is_modified(self, modified=True):
+        self.modified = modified
+
     def enable_buttons(self, enable=True):
         self.button_generate_master.Enable()
         self.button_generate_invoices.Enable()
@@ -74,3 +77,9 @@ class PdfPanel(wx.Panel):
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
+
+    def get_data(self):
+        return {}
+
+    def load_data(self, data):
+        self.modified = False

@@ -51,6 +51,9 @@ class FeeSchedulePanel(ListSorterPanel):
     def is_modified(self):
         return self.list_ctrl.is_modified()
 
+    def set_is_modified(self, modified=True):
+        self.list_ctrl.set_is_modified(modified)
+
     def on_import(self, event=None):
         dirname = ''
         file_dialog = wx.FileDialog(parent=self,
@@ -128,13 +131,19 @@ class FeeSchedulePanel(ListSorterPanel):
         self.button_export.Enable(enable)
 
     def populate_fee_schedule(self, families):
-        self.add_column('Class')
-        self.add_column('Teacher')
-        self.add_column('Fee', format=wx.LIST_FORMAT_RIGHT)
+        self.init_column_headers()
 
         for class_name in get_classes(families):
             self.add_row([class_name, '', Decimal('0.00')], dedup_col=0)
 
+        self.resize_columns()
+
+    def init_column_headers(self):
+        self.add_column('Class')
+        self.add_column('Teacher')
+        self.add_column('Fee', format=wx.LIST_FORMAT_RIGHT)
+
+    def resize_columns(self):
         self.resize_column(0)
         self.resize_column(1)
         self.resize_column(2)
@@ -165,3 +174,20 @@ class FeeSchedulePanel(ListSorterPanel):
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
+
+    def get_data(self):
+        data = []
+        for r in range(self.GetListCtrl().GetItemCount()):
+            row = []
+            for c in range(self.GetListCtrl().GetColumnCount()):
+                row.append(self.GetListCtrl().GetItem(r, c).GetText())
+            row[2] = Decimal(row[2])
+            data.append(row)
+        return data
+
+    def load_data(self, data):
+        self.clear()
+        self.init_column_headers()
+        for row in data:
+            self.add_row(row)
+        self.resize_columns()

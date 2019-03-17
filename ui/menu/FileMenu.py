@@ -8,10 +8,10 @@ class FileMenu(wx.Menu):
     def __init__(self, parent_frame, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.parent_frame = parent_frame
+        self.file_history = wx.FileHistory()
 
         item = self.Append(wx.ID_OPEN, "&Open...\tCtrl-O", "Open a ClientInvoices file")
         self.Bind(wx.EVT_MENU, self.on_open, item)
-        self.add_recent_files()
 
         # --------------------
         self.AppendSeparator()
@@ -21,7 +21,10 @@ class FileMenu(wx.Menu):
 
         item = self.Append(wx.ID_SAVE, "&Save\tCtrl-S", "Save the document")
         self.Bind(wx.EVT_MENU, self.on_save, item)
-        self.add_recent_files()
+
+        # --------------------
+        self.AppendSeparator()
+        # self.add_recent_files()
 
         # --------------------
         self.AppendSeparator()
@@ -37,6 +40,7 @@ class FileMenu(wx.Menu):
 
     def on_open(self, event=None):
         """Exit application."""
+        print(event)
         self.parent_frame.on_open()
 
     def on_save(self, event=None):
@@ -46,7 +50,9 @@ class FileMenu(wx.Menu):
     def add_recent_files(self):
         recent_files = app_config.conf.get(app_config.RECENT_FILES_KEY)
         if recent_files:
-            sub_menu = wx.Menu()
             for file in recent_files:
-                sub_menu.Append(wx.ID_ANY, file)
-            self.Append(wx.ID_ANY, "Recent files")
+                self.file_history.AddFileToHistory(file)
+                self.file_history.AddFilesToMenu()
+            self.file_history.AddFilesToMenu(menu=self)
+            # self.Bind(wx.EVT_MENU, self.on_open, file_menu)
+            # self.Append(wx.ID_ANY, "Open Recent", sub_menu)

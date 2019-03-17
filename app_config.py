@@ -1,65 +1,42 @@
 # from PyQt5.QtCore import QSettings
+import os
 
-PUBLISHER_Name = 'AndyJensen'
+import wx
+
+PUBLISHER_NAME = 'AndyJensen'
 APP_NAME = 'ClassInvoices'
 
-DEFAULT_DIRECTORY_KEY = 'default_dir'
+DEFAULT_DOC_DIR_KEY = 'default_dir'
+DEFAULT_CSV_DIR_KEY = 'csv_dir'
 RECENT_FILES_KEY = 'recent'
-EMAIL_MESSAGE_KEY = 'email_body'
-EMAIL_SUBJECT_KEY = 'email_subject'
+POS_H_KEY = 'x'
+POS_V_KEY = 'y'
+WIDTH_KEY = 'width'
+HEIGHT_KEY = 'height'
 
 DEFAULTS = {
-    RECENT_FILES_KEY: [],
-    DEFAULT_DIRECTORY_KEY: '',
-    EMAIL_MESSAGE_KEY: 'Attached, please find the class enrollment invoice for your student\'s classes this semester.',
-    EMAIL_SUBJECT_KEY: 'Enrollment Invoice 2019, Semester 2',
+    DEFAULT_DOC_DIR_KEY: os.path.expanduser('~/Documents/'),
+    DEFAULT_CSV_DIR_KEY: os.path.expanduser('~/Documents/'),
+    POS_H_KEY: 222,
+    POS_V_KEY: 130,
+    WIDTH_KEY: 1080,
+    HEIGHT_KEY: 700,
 }
 
 conf = None
 
 
-class MockSettings(object):
-    def __init__(self):
-        self.settings = {}
-
-    def setValue(self, k, v):
-        self.settings[k] = v
-
-    def value(self, k):
-        try:
-            return self.settings[k]
-        except KeyError:
-            return None
-
-
-class Config(object):
-    def __init__(self, publisher, application):
-        self.publisher = publisher
-        self.application = application
-        # self.settings = QSettings(self.publisher, self.application)
-        self.settings = MockSettings()
-        self.create_config()
-
-    def create_config(self):
-        for k, v in DEFAULTS.items():
-            if self.get(k) is None:
-                self.settings.setValue(k, v)
-        self.save_config()
-
-    def save_config(self):
-        # This will write the setting to the platform specific storage.
-        # del self.settings
-        # self.settings = QSettings(self.publisher, self.application)
-        pass
-
-    def set(self, key, value):
-        self.settings.setValue(key, value)
-        self.save_config()
-
-    def get(self, key):
-        value = self.settings.value(key)
-        return value
-
-
-if conf is None:
-    conf = Config(PUBLISHER_Name, APP_NAME)
+def create_config():
+    global conf
+    if conf is None:
+        conf = wx.FileConfig(APP_NAME, PUBLISHER_NAME)
+    for k, v in DEFAULTS.items():
+        if not conf.Exists(k):
+            print(f'creating {k} -> {v}')
+            if isinstance(v, int):
+                conf.WriteInt(k, v)
+            else:
+                conf.Write(k, v)
+        else:
+            print(f'{k} = {conf.Read(k)}')
+    conf.Flush()

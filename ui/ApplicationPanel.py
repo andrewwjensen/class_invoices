@@ -91,6 +91,7 @@ class ApplicationPanel(wx.Panel):
 
     def on_enrollment_change(self, event=None):
         self.fee_schedule_panel.populate_fee_schedule(self.enrollment_panel.get_families())
+        self.enable_buttons()
 
     def on_fee_import(self, event=None):
         self.enrollment_panel.set_class_map(self.fee_schedule_panel.get_class_map())

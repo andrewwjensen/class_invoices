@@ -1,9 +1,4 @@
-import csv
-import os
-
 import wx
-
-import app_config
 
 
 class EditMenu(wx.Menu):

@@ -24,12 +24,16 @@ class FeeSchedulePanel(ListSorterPanel):
                                  *args, **kwargs)
         self.button_import = wx.Button(self, wx.ID_ANY, "Import Fee Schedule...")
         self.button_export = wx.Button(self, wx.ID_ANY, "Export Fee Schedule...")
-        self.__do_layout(border)
+
         self.error_msg = None
+
+        self.__do_layout(border)
 
     def __do_layout(self, border):
         sizer_fee_table = wx.BoxSizer(wx.VERTICAL)
         sizer_fee_buttons = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.GetListCtrl().setResizeColumn(1)
 
         self.SetMinSize((200, 100))
         sizer_fee_table.Add(self.GetListCtrl(), 1, wx.EXPAND | wx.ALL, border)
@@ -126,23 +130,26 @@ class FeeSchedulePanel(ListSorterPanel):
     def populate_fee_schedule(self, families):
         self.add_column('Class')
         self.add_column('Teacher')
-        self.add_column('Fee')
+        self.add_column('Fee', format=wx.LIST_FORMAT_RIGHT)
 
         for class_name in get_classes(families):
-            self.add_row([class_name, '', ''], dedup_col=0)
+            self.add_row([class_name, '', Decimal('0.00')], dedup_col=0)
 
         self.resize_column(0)
+        self.resize_column(1)
+        self.resize_column(2)
         self.SortListItems(0)
+        self.Refresh()
 
     def get_class_map(self):
         class_map = {}
-        missing_classes = []
+        missing_classes = set()
         for r in range(self.GetListCtrl().GetItemCount()):
             class_name = self.GetListCtrl().GetItem(r, 0).GetText()
             teacher = self.GetListCtrl().GetItem(r, 1).GetText()
             fee = self.GetListCtrl().GetItem(r, 2).GetText()
             if not teacher or not fee:
-                missing_classes.append(class_name)
+                missing_classes.add(class_name)
             else:
                 class_map[class_name] = (teacher, Decimal(fee))
         if missing_classes:

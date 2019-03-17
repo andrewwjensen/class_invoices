@@ -74,8 +74,8 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
     def resize_column(self, col):
         self.list_ctrl.SetColumnWidth(col, wx.LIST_AUTOSIZE_USEHEADER)
 
-    def add_column(self, col_name):
+    def add_column(self, col_name, **kwargs):
         if col_name not in self.columns:
-            self.list_ctrl.InsertColumn(len(self.columns), col_name)
+            self.list_ctrl.InsertColumn(len(self.columns), col_name, **kwargs)
             self.columns.add(col_name)
             self.column.append(set())

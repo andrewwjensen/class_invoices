@@ -1,5 +1,3 @@
-import os
-
 import wx
 
 from model.columns import Column
@@ -38,8 +36,12 @@ class ApplicationPanel(wx.Panel):
         wx.Panel.__init__(self, parent, *args, **kwargs)
 
         self.splitter = wx.SplitterWindow(self, wx.ID_ANY)
-        self.enrollment_panel = EnrollmentPanel(parent=self.splitter, id=wx.ID_ANY, border=BORDER_WIDTH)
-        self.fee_schedule_panel = FeeSchedulePanel(parent=self.splitter, border=BORDER_WIDTH)
+        self.fee_schedule_panel = FeeSchedulePanel(parent=self.splitter,
+                                                   border=BORDER_WIDTH)
+        self.enrollment_panel = EnrollmentPanel(parent=self.splitter,
+                                                id=wx.ID_ANY,
+                                                fee_provider=self.fee_schedule_panel,
+                                                border=BORDER_WIDTH)
 
         self.__set_properties()
         self.__do_layout()
@@ -47,7 +49,6 @@ class ApplicationPanel(wx.Panel):
         self.Bind(wx.EVT_SIZE, self.on_resize)
         self.Bind(wx.EVT_SPLITTER_SASH_POS_CHANGED, self.on_sash_changed)
         self.enrollment_panel.Bind(EnrollmentPanel.EVT_ENROLLMENT_DATA_CHANGED, self.on_enrollment_change)
-        self.fee_schedule_panel.Bind(FeeSchedulePanel.EVT_FEE_SCHEDULE_IMPORTED, self.on_fee_import)
 
         self.sash_proportion = 0.5
         self.error_msg = None
@@ -67,12 +68,6 @@ class ApplicationPanel(wx.Panel):
         self.SetAutoLayout(True)
         self.Layout()
         # end wxGlade
-
-    def load_test_data(self):
-        # self.enrollment_panel.load_enrollment_data(os.path.expandvars('${HOME}/Downloads/member-list-sm.csv'))
-        self.enrollment_panel.load_enrollment_data(os.path.expandvars('${HOME}/Downloads/member-list-micro.csv'))
-        wx.Yield()  # Give a chance to process EVT_ENROLLMENT_DATA_CHANGED
-        self.fee_schedule_panel.load_fee_schedule(os.path.expandvars('${HOME}/Downloads/Fee Schedule.csv'))
 
     def is_modified(self):
         return self.enrollment_panel.is_modified() or self.fee_schedule_panel.is_modified()
@@ -98,20 +93,21 @@ class ApplicationPanel(wx.Panel):
         self.fee_schedule_panel.populate_fee_schedule(self.enrollment_panel.get_families())
         self.enable_buttons()
 
-    def on_fee_import(self, event=None):
-        self.enrollment_panel.set_class_map(self.fee_schedule_panel.get_class_map())
-
     def enable_buttons(self):
         self.enrollment_panel.enable_buttons()
         self.fee_schedule_panel.enable_buttons()
 
     def get_data(self):
         return {
+            'sash_proportion': self.sash_proportion,
             'enrollment': self.enrollment_panel.get_data(),
             'fee_schedule': self.fee_schedule_panel.get_data(),
         }
 
     def load_data(self, data):
-        print(repr(data))
+        if 'sash_proportion' in data:
+            self.sash_proportion = data['sash_proportion']
+        else:
+            print('no sash proportion')
         self.enrollment_panel.load_data(data['enrollment'])
         self.fee_schedule_panel.load_data(data['fee_schedule'])

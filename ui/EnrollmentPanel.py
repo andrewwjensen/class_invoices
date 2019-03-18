@@ -15,15 +15,23 @@ DEFAULT_BORDER = 5
 class EnrollmentPanel(wx.Panel):
     EnrollmentDataEvent, EVT_ENROLLMENT_DATA_CHANGED = wx.lib.newevent.NewEvent()
 
-    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
         self.button_show_students = wx.Button(self, wx.ID_ANY, "Show Student List...")
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
-        self.pdf_tab_panel = PdfPanel(parent=self.action_tabs, id=wx.ID_ANY, enrollment_panel=self, border=border)
-        self.email_tab_panel = EmailPanel(parent=self.action_tabs, id=wx.ID_ANY, enrollment_panel=self, border=border)
+        self.pdf_tab_panel = PdfPanel(parent=self.action_tabs,
+                                      id=wx.ID_ANY,
+                                      family_provider=self,
+                                      fee_provider=fee_provider,
+                                      border=border)
+        self.email_tab_panel = EmailPanel(parent=self.action_tabs,
+                                          id=wx.ID_ANY,
+                                          family_provider=self,
+                                          fee_provider=fee_provider,
+                                          border=border)
 
         self.__do_layout(border)
 
@@ -76,12 +84,6 @@ class EnrollmentPanel(wx.Panel):
 
     def get_families(self):
         return self.families
-
-    def set_class_map(self, class_map):
-        self.class_map = class_map
-
-    def get_class_map(self):
-        return self.class_map
 
     def on_load(self, event=None):
         """Load a new class enrollment CSV file."""

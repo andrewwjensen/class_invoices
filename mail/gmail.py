@@ -1,16 +1,19 @@
 import base64
+import logging
 import os
 import pickle
-from email import errors
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import google
+import oauthlib
 import wx
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+import app_config
 from model.columns import Column
 from model.family import get_students
 from pdf.generate import create_invoice
@@ -34,6 +37,10 @@ CLIENT_CONFIG = {
     }
 }
 
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 def get_credentials_dir():
     home_dir = os.path.expanduser('~')
@@ -43,32 +50,44 @@ def get_credentials_dir():
     return credential_dir
 
 
-def authenticate():
-    """Shows basic usage of the Gmail API."""
+def authenticate(force_new=False):
+    """Get credentials to authenticate to Google for using Gmail API."""
     credentials = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    token_path = os.path.join(get_credentials_dir(), 'token.pickle')
-    if os.path.exists(token_path):
-        with open(token_path, 'rb') as token:
-            credentials = pickle.load(token)
+    # The config key GMAIL_TOKEN_KEY stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first time.
+    if not force_new and app_config.conf.Exists(app_config.GMAIL_TOKEN_KEY):
+        # Token is pickled and base64 encoded for storing in a text config file
+        token_b64 = app_config.conf.Read(app_config.GMAIL_TOKEN_KEY)
+        token = base64.b64decode(token_b64)
+        credentials = pickle.loads(token)
     # If there are no (valid) credentials available, let the user log in.
-    if not credentials or not credentials.valid:
-        if credentials and credentials.expired and credentials.refresh_token:
+    if force_new or not credentials or not credentials.valid:
+        if not force_new and credentials and credentials.expired and credentials.refresh_token:
             credentials.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             credentials = flow.run_local_server()
-        # Save the credentials for the next run
-        with open(token_path, 'wb') as token:
-            pickle.dump(credentials, token)
+        # Save the credentials in config for the next run
+        token = pickle.dumps(credentials)
+        token_b64 = base64.b64encode(token)
+        app_config.conf.Write(app_config.GMAIL_TOKEN_KEY, token_b64)
+        app_config.conf.Flush()
     return credentials
 
 
 def get_gmail_service():
-    credentials = authenticate()
-    return build('gmail', 'v1', credentials=credentials)
+    try:
+        try:
+            # Authenticate, or use refresh token
+            return build('gmail', 'v1', credentials=authenticate())
+        except google.auth.exceptions.RefreshError:
+            logger.exception('Token refresh failed.')
+        # Since refresh failed, user probably revoked authorization. Try restarting
+        # the email authentication process and have the user approve again.
+        return build('gmail', 'v1', credentials=authenticate(force_new=True))
+    except oauthlib.oauth2.rfc6749.errors.OAuth2Error:
+        pass
+    raise RuntimeError('Failed to authenticate to Google for sending mail.')
 
 
 def create_message_with_attachment(sender, recipients, subject, body, data):
@@ -117,11 +136,8 @@ def send_message(service, user_id, message):
     Returns:
       Sent Message.
     """
-    try:
-        message = service.users().messages().send(userId=user_id, body=message).execute()
-        return message
-    except errors.HttpError as error:
-        print('An error occurred: %s' % error)
+    message = service.users().messages().send(userId=user_id, body=message).execute()
+    return message
 
 
 def create_draft(service, user_id, message_body):
@@ -136,13 +152,9 @@ def create_draft(service, user_id, message_body):
     Returns:
       Draft object, including draft id and message meta data.
     """
-    try:
-        message = {'message': message_body}
-        draft = service.users().drafts().create(userId=user_id, body=message).execute()
-        return draft
-    except errors.MessageError as e:
-        print(f'An error occurred: {e}')
-        return None
+    message = {'message': message_body}
+    draft = service.users().drafts().create(userId=user_id, body=message).execute()
+    return draft
 
 
 def send_emails(subject, body, families, class_map, progress):

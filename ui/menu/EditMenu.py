@@ -21,5 +21,4 @@ class EditMenu(wx.Menu):
 
     def on_copy(self, event=None):
         """Exit application."""
-        print('edit menu event:', event)
         self.parent.copy()

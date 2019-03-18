@@ -1,11 +1,9 @@
 import traceback
-from decimal import Decimal
 
 import wx
 import wx.lib.newevent
 
 from mail.gmail import send_emails
-from model.columns import Column
 from util import start_thread
 
 DEFAULT_BORDER = 5
@@ -13,14 +11,16 @@ DEFAULT_BORDER = 5
 
 class EmailPanel(wx.Panel):
 
-    def __init__(self, enrollment_panel, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, family_provider, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_email_invoices = wx.Button(self, wx.ID_ANY, "Email Invoices...")
         self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "")
         self.text_ctrl_email_body = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
 
-        self.enrollment_panel = enrollment_panel
+        self.family_provider = family_provider
+        self.fee_provider = fee_provider
+
         self.modified = False
         self.error_msg = None
 
@@ -80,7 +80,7 @@ class EmailPanel(wx.Panel):
                         title="Emailing Invoices",
                         message="Please wait...\n\n"
                                 "Emailing invoice for family:",
-                        maximum=len(self.enrollment_panel.get_families()),
+                        maximum=len(self.family_provider.get_families()),
                         style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT)
                     start_thread(self.email_invoices, subject, body, progress)
                     progress.ShowModal()
@@ -95,10 +95,11 @@ class EmailPanel(wx.Panel):
 
     def email_invoices(self, subject, body, progress):
         try:
-            self.validate_fee_schedule()
+            families = self.family_provider.get_families()
+            self.fee_provider.validate_fee_schedule(families)
             send_emails(subject, body,
-                        self.enrollment_panel.get_families(),
-                        self.enrollment_panel.get_class_map(),
+                        families,
+                        self.fee_provider.generate_class_map(),
                         progress)
         except KeyError as e:
             self.error_msg = "Missing teacher or fee for class while sending email: " + e.args[0]
@@ -117,20 +118,6 @@ class EmailPanel(wx.Panel):
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
-
-    def validate_fee_schedule(self):
-        missing_fees = []
-        for family in self.enrollment_panel.get_families().values():
-            for student in family['students']:
-                for class_name in student[Column.CLASSES]:
-                    try:
-                        teacher, fee = self.enrollment_panel.get_class_map()[class_name]
-                        if not teacher or not fee or not type(fee) == Decimal:
-                            missing_fees.append(class_name)
-                    except KeyError:
-                        missing_fees.append(class_name)
-        if missing_fees:
-            raise RuntimeError('missing teacher or fee for classes:\n    ' + '\n    '.join(missing_fees))
 
     def get_data(self):
         return {

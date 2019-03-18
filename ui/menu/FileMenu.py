@@ -13,6 +13,7 @@ class FileMenu(wx.Menu):
 
         item = self.Append(wx.ID_OPEN, "&Open...\tCtrl-O", "Open a ClientInvoices file")
         self.Bind(wx.EVT_MENU, self.parent_frame.on_open, item)
+        self.add_recent_files()
 
         # --------------------
         self.AppendSeparator()
@@ -22,10 +23,8 @@ class FileMenu(wx.Menu):
 
         item = self.Append(wx.ID_SAVE, "&Save\tCtrl-S", "Save the document")
         self.Bind(wx.EVT_MENU, self.parent_frame.on_save, item)
-
-        # --------------------
-        self.AppendSeparator()
-        self.add_recent_files()
+        item = self.Append(wx.ID_SAVEAS, "Save &As...\tCtrl-Alt-S", "Save the document as...")
+        self.Bind(wx.EVT_MENU, self.parent_frame.on_save, item)
 
         # --------------------
         self.AppendSeparator()
@@ -39,10 +38,11 @@ class FileMenu(wx.Menu):
         recent = wx.Menu()
         self.file_history.UseMenu(recent)
         self.file_history.AddFilesToMenu()
-        self.Bind(wx.EVT_MENU_RANGE, self.on_file_history, id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        recent.Bind(wx.EVT_MENU_RANGE, self.on_file_history, id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        self.Append(wx.ID_ANY, "Open &Recent", recent)
 
-    def on_file_history(self, event):
-        fileNum = event.GetId() - wx.ID_FILE1
-        path = self.file_history.GetHistoryFile(fileNum)
-        self.file_history.AddFileToHistory(path)  # move up the list
-        # do whatever you want with the file path...
+    def on_file_history(self, event=None):
+        file_num = event.GetId() - wx.ID_FILE1
+        path = self.file_history.GetHistoryFile(file_num)
+        self.file_history.AddFileToHistory(path)  # move this one to the top of the list
+        self.parent_frame.load_file(path)

@@ -1,16 +1,18 @@
 import datetime
 import io
+import logging
 import traceback
 from decimal import Decimal
 
 import wx
 from z3c.rml import rml2pdf
 
+import app_config
 from model.columns import Column
 from model.family import get_parents, get_students
 from pdf.my_bytes_io import MyBytesIO
 
-RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
+INVOICE_RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
 <document filename="invoice.pdf" invariant="1">
 
   <template pagesize="letter" leftMargin="72">
@@ -68,28 +70,29 @@ RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
 """
 PARAGRAPH_TEMPLATE = '<para style="{style}">{msg}</para>'
 
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 def pad_str(s, n):
     s += ' '
     return s + '_' * (n - len(s))
 
 
-def generate_invoices(self, progress):
-    n = 1
+def generate_invoices(families, class_map, progress):
     try:
-        class_map = self.get_class_map()
-        for family in self.families.values():
+        for n, family in enumerate(families.values()):
             if progress.WasCancelled():
                 break
             msg = "Please wait...\n\n" \
                 f"Generating invoice for family: {family['last_name']}"
-            wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+            wx.CallAfter(progress.Update, n, newmsg=msg)
             if get_students(family):
-                with open(f'invoice{n:03}.pdf', 'wb') as f:
+                with open(f'invoice{n + 1:03}.pdf', 'wb') as f:
                     f.write(create_invoice(family, class_map))
-                    n += 1
     except Exception as e:
-        self.error_msg = "Error while generating invoices: " + str(e)
+        error_msg = "Error while generating invoices: " + str(e)
         traceback.print_exc()
     wx.CallAfter(progress.EndModal, 0)
     wx.CallAfter(progress.Destroy)
@@ -135,12 +138,12 @@ def generate(invoice, filename):
     for teacher, fee in sorted(invoice['payable'].items()):
         payables_rml += generate_table_row_rml([teacher, '$' + str(fee)])
 
-    rml = RML_TEMPLATE.format(parents=parents_rml,
-                              students=students_rml,
-                              payables=payables_rml,
-                              num_classes=num_classes + 1,
-                              date=now.strftime('%a %b %d, %Y'),
-                              filename=filename)
+    rml = INVOICE_RML_TEMPLATE.format(parents=parents_rml,
+                                      students=students_rml,
+                                      payables=payables_rml,
+                                      num_classes=num_classes + 1,
+                                      date=now.strftime('%a %b %d, %Y'),
+                                      filename=filename)
     # print('rml:', rml)
 
     input_buf = io.StringIO(rml)

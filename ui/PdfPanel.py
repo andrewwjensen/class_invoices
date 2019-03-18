@@ -9,13 +9,15 @@ DEFAULT_BORDER = 5
 
 class PdfPanel(wx.Panel):
 
-    def __init__(self, enrollment_panel, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, family_provider, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_generate_master = wx.Button(self, wx.ID_ANY, "Generate Master PDF...")
         self.button_generate_invoices = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
 
-        self.enrollment_panel = enrollment_panel
+        self.family_provider = family_provider
+        self.fee_provider = fee_provider
+
         self.modified = False
         self.error_msg = None
 
@@ -51,7 +53,7 @@ class PdfPanel(wx.Panel):
                                      "Please wait...\n\n"
                                      "Processing family:",
                                      parent=self,
-                                     maximum=len(self.enrollment_panel.get_families()),
+                                     maximum=len(self.family_provider.get_families()),
                                      style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
                                      )
         # start_thread(self.generate_invoices, progress)
@@ -59,13 +61,15 @@ class PdfPanel(wx.Panel):
         self.check_error()
 
     def on_generate_invoices(self, event=None):
+        families = self.family_provider.get_families()
         progress = wx.ProgressDialog("Generating Invoices",
                                      "Please wait...\n\n"
                                      "Generating invoice for family:",
-                                     maximum=len(self.enrollment_panel.get_families()), parent=self,
+                                     maximum=len(families), parent=self,
                                      style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
                                      )
-        start_thread(generate_invoices, progress)
+        class_map = self.fee_provider.generate_class_map()
+        start_thread(generate_invoices, families, class_map, progress)
         progress.ShowModal()
         self.check_error()
 

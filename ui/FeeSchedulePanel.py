@@ -1,21 +1,25 @@
 import csv
+import logging
 import os
-import traceback
 from decimal import Decimal
 
 import wx
 import wx.lib.newevent
 
+import app_config
+from model.columns import Column
 from model.family import get_classes
 from model.fee_schedule import read_fee_schedule
 from ui.ListSorterPanel import ListSorterPanel
 
 DEFAULT_BORDER = 5
 
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 class FeeSchedulePanel(ListSorterPanel):
-    ImportFeeScheduleEvent, EVT_FEE_SCHEDULE_IMPORTED = wx.lib.newevent.NewEvent()
-
     def __init__(self, parent, border=DEFAULT_BORDER, *args, **kwargs):
         ListSorterPanel.__init__(self,
                                  parent=parent,
@@ -25,6 +29,7 @@ class FeeSchedulePanel(ListSorterPanel):
         self.button_import = wx.Button(self, wx.ID_ANY, "Import Fee Schedule...")
         self.button_export = wx.Button(self, wx.ID_ANY, "Export Fee Schedule...")
 
+        self.class_map = {}
         self.error_msg = None
 
         self.__do_layout(border)
@@ -71,7 +76,7 @@ class FeeSchedulePanel(ListSorterPanel):
                 self.modified = True
             except Exception as e:
                 self.error_msg = "Error while reading fee schedule: " + str(e)
-                traceback.print_exc()
+                logger.exception('Import error')
         file_dialog.Destroy()
         self.check_error()
 
@@ -95,15 +100,13 @@ class FeeSchedulePanel(ListSorterPanel):
                         csv_writer.writerow(row)
             except Exception as e:
                 self.error_msg = "Error while exporting fee schedule: " + str(e)
-                traceback.print_exc()
+                logger.exception('Export error')
         file_dialog.Destroy()
         self.check_error()
 
     def load_fee_schedule(self, path):
         fee_schedule = read_fee_schedule(path)
         self.show_fee_schedule(fee_schedule)
-        event = self.ImportFeeScheduleEvent()
-        wx.PostEvent(self.GetEventHandler(), event)
 
     def show_fee_schedule(self, fee_schedule):
         # First, build a map of class name to row number on the displayed fee schedule
@@ -150,21 +153,39 @@ class FeeSchedulePanel(ListSorterPanel):
         self.SortListItems(0)
         self.Refresh()
 
-    def get_class_map(self):
+    def generate_class_map(self):
         class_map = {}
-        missing_classes = set()
         for r in range(self.GetListCtrl().GetItemCount()):
-            class_name = self.GetListCtrl().GetItem(r, 0).GetText()
-            teacher = self.GetListCtrl().GetItem(r, 1).GetText()
-            fee = self.GetListCtrl().GetItem(r, 2).GetText()
-            if not teacher or not fee:
-                missing_classes.add(class_name)
-            else:
+            class_name = self.GetListCtrl().GetItem(r, 0).GetText().strip()
+            teacher = self.GetListCtrl().GetItem(r, 1).GetText().strip()
+            fee = self.GetListCtrl().GetItem(r, 2).GetText().strip()
+            if teacher and fee:
                 class_map[class_name] = (teacher, Decimal(fee))
-        if missing_classes:
-            msg = 'Classes have missing teacher or fee:\n  ' + '\n  '.join(missing_classes)
-            raise RuntimeError(msg)
         return class_map
+
+    def validate_fee_schedule(self, families):
+        class_map = self.generate_class_map()
+        missing_fees = set()  # Use a set to de-dup
+        for family in families.values():
+            for student in family['students']:
+                for class_name in student[Column.CLASSES]:
+                    try:
+                        teacher, fee = class_map[class_name]
+                        if not teacher or not fee or not type(fee) == Decimal:
+                            print('fee', fee)
+                            missing_fees.add(class_name)
+                    except KeyError:
+                        missing_fees.add(class_name)
+        if missing_fees:
+            max_missing = 10
+            if len(missing_fees) > max_missing:
+                missing_msg = '\n    '.join(sorted(missing_fees)[:max_missing] + ['...'])
+            else:
+                missing_msg = '\n    '.join(sorted(missing_fees))
+            raise RuntimeError('missing teacher or fee for classes:\n    ' + missing_msg)
+
+    def set_class_map(self, class_map):
+        self.class_map = class_map
 
     def check_error(self):
         if self.error_msg:

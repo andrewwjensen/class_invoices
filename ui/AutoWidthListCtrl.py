@@ -11,8 +11,8 @@ class AutoWidthListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
 class AutoWidthEditableListCtrl(wx.ListCtrl,
                                 listmix.ListCtrlAutoWidthMixin,
                                 listmix.TextEditMixin):
-    def __init__(self, parent, wx_id, editable_columns=None, pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
-        wx.ListCtrl.__init__(self, parent, wx_id, pos, size, style)
+    def __init__(self, parent, editable_columns=None, *args, **kwargs):
+        wx.ListCtrl.__init__(self, parent, *args, **kwargs)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         listmix.TextEditMixin.__init__(self)
         self.editable_columns = editable_columns

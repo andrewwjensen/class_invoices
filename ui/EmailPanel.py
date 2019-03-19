@@ -1,25 +1,31 @@
+import logging
 import traceback
 
 import wx
 import wx.lib.newevent
 
+import app_config
 from mail.gmail import send_emails
 from util import start_thread
 
 DEFAULT_BORDER = 5
 
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 class EmailPanel(wx.Panel):
 
-    def __init__(self, family_provider, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_email_invoices = wx.Button(self, wx.ID_ANY, "Email Invoices...")
         self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "")
         self.text_ctrl_email_body = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
 
-        self.family_provider = family_provider
-        self.fee_provider = fee_provider
+        self.family_provider = None
+        self.fee_provider = None
 
         self.modified = False
         self.error_msg = None
@@ -60,6 +66,12 @@ class EmailPanel(wx.Panel):
         self.text_ctrl_email_body.SetModified(modified)
         self.text_ctrl_email_subject.SetModified(modified)
 
+    def set_family_provider(self, provider):
+        self.family_provider = provider
+
+    def set_fee_provider(self, provider):
+        self.fee_provider = provider
+
     def enable_buttons(self, enable=True):
         self.button_email_invoices.Enable(enable)
 
@@ -69,24 +81,21 @@ class EmailPanel(wx.Panel):
         try:
             if not subject.strip():
                 self.error_msg = 'Email subject may not be empty.'
-                self.text_ctrl_email_subject.SetFocus()
+            elif not body.strip():
+                self.error_msg = 'Enter a message body before sending email.'
             else:
-                if not body.strip():
-                    self.error_msg = 'Enter a message body before sending email.'
-                    self.text_ctrl_email_body.SetFocus()
-                else:
-                    progress = wx.ProgressDialog(
-                        parent=self,
-                        title="Emailing Invoices",
-                        message="Please wait...\n\n"
-                                "Emailing invoice for family:",
-                        maximum=len(self.family_provider.get_families()),
-                        style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT)
-                    start_thread(self.email_invoices, subject, body, progress)
-                    progress.ShowModal()
+                progress = wx.ProgressDialog(
+                    parent=self,
+                    title='Emailing Invoices',
+                    message="Please wait...\n\n"
+                            "Emailing invoice for family:",
+                    maximum=len(self.family_provider.get_families()),
+                    style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT)
+                start_thread(self.email_invoices, subject, body, progress)
+                progress.ShowModal()
         except Exception as e:
-            self.error_msg = "Error while sending email: " + str(e)
-            traceback.print_exc()
+            self.error_msg = 'Error while sending email: ' + str(e)
+            logger.exception('could not send mail')
         self.check_error()
         if not subject.strip():
             self.text_ctrl_email_subject.SetFocus()
@@ -94,9 +103,9 @@ class EmailPanel(wx.Panel):
             self.text_ctrl_email_body.SetFocus()
 
     def email_invoices(self, subject, body, progress):
+        families = self.family_provider.get_families()
+        self.fee_provider.validate_fee_schedule(families)
         try:
-            families = self.family_provider.get_families()
-            self.fee_provider.validate_fee_schedule(families)
             send_emails(subject, body,
                         families,
                         self.fee_provider.generate_class_map(),

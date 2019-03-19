@@ -20,10 +20,8 @@ logger.setLevel(logging.INFO)
 
 
 class FeeSchedulePanel(ListSorterPanel):
-    def __init__(self, parent, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         ListSorterPanel.__init__(self,
-                                 parent=parent,
-                                 my_id=wx.ID_ANY,
                                  editable_columns=[1, 2],
                                  *args, **kwargs)
         self.button_import = wx.Button(self, wx.ID_ANY, "Import Fee Schedule...")
@@ -105,6 +103,7 @@ class FeeSchedulePanel(ListSorterPanel):
         self.check_error()
 
     def load_fee_schedule(self, path):
+        logger.debug('loading fee schedule')
         fee_schedule = read_fee_schedule(path)
         self.show_fee_schedule(fee_schedule)
 
@@ -124,16 +123,14 @@ class FeeSchedulePanel(ListSorterPanel):
             except KeyError:
                 # Ignore classes that are not needed for any registered student
                 pass
-        self.SetColumnCount(3)
-        self.resize_column(1)
-        self.resize_column(2)
-        self.Refresh()
+        self.resize_columns()
 
     def enable_buttons(self, enable=True):
         self.button_import.Enable(enable)
         self.button_export.Enable(enable)
 
     def populate_fee_schedule(self, families):
+        logger.debug('populating fee schedule')
         self.init_column_headers()
 
         for class_name in get_classes(families):
@@ -147,9 +144,12 @@ class FeeSchedulePanel(ListSorterPanel):
         self.add_column('Fee', format=wx.LIST_FORMAT_RIGHT)
 
     def resize_columns(self):
+        self.SetColumnCount(3)
+
         self.resize_column(0)
         self.resize_column(1)
         self.resize_column(2)
+
         self.SortListItems(0)
         self.Refresh()
 

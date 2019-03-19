@@ -1,5 +1,8 @@
+import logging
+
 import wx
 
+import app_config
 from model.columns import Column
 from ui.EnrollmentPanel import EnrollmentPanel
 from ui.FeeSchedulePanel import FeeSchedulePanel
@@ -28,20 +31,25 @@ COLUMN_DISPLAY_MAP = {
     Column.CLASSES: 'Classes',
 }
 
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 class ApplicationPanel(wx.Panel):
     """This Panel holds the main application data, a table of CSV values."""
 
-    def __init__(self, parent, *args, **kwargs):
-        wx.Panel.__init__(self, parent, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        wx.Panel.__init__(self, *args, **kwargs)
 
         self.splitter = wx.SplitterWindow(self, wx.ID_ANY)
-        self.fee_schedule_panel = FeeSchedulePanel(parent=self.splitter,
-                                                   border=BORDER_WIDTH)
         self.enrollment_panel = EnrollmentPanel(parent=self.splitter,
                                                 id=wx.ID_ANY,
-                                                fee_provider=self.fee_schedule_panel,
                                                 border=BORDER_WIDTH)
+        self.fee_schedule_panel = FeeSchedulePanel(parent=self.splitter,
+                                                   id=wx.ID_ANY,
+                                                   border=BORDER_WIDTH)
+        self.enrollment_panel.set_fee_provider(self.fee_schedule_panel)
 
         self.__set_properties()
         self.__do_layout()
@@ -79,7 +87,8 @@ class ApplicationPanel(wx.Panel):
     def on_resize(self, event=None):
         """Window has been resized, so we need to adjust the sash based on self.proportion."""
         self.splitter.SetSashPosition(self.get_expected_sash_position())
-        event.Skip()
+        if event is not None:
+            event.Skip()
 
     def on_sash_changed(self, event=None):
         width = max(self.splitter.GetMinimumPaneSize(), self.GetParent().GetClientSize().width)
@@ -107,7 +116,9 @@ class ApplicationPanel(wx.Panel):
     def load_data(self, data):
         if 'sash_proportion' in data:
             self.sash_proportion = data['sash_proportion']
+            self.on_resize()
         else:
-            print('no sash proportion')
+            logger.debug('no sash proportion')
         self.enrollment_panel.load_data(data['enrollment'])
         self.fee_schedule_panel.load_data(data['fee_schedule'])
+        self.Refresh()

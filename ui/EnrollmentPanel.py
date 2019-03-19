@@ -15,7 +15,7 @@ DEFAULT_BORDER = 5
 class EnrollmentPanel(wx.Panel):
     EnrollmentDataEvent, EVT_ENROLLMENT_DATA_CHANGED = wx.lib.newevent.NewEvent()
 
-    def __init__(self, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
         self.button_show_students = wx.Button(self, wx.ID_ANY, "Show Student List...")
@@ -24,16 +24,19 @@ class EnrollmentPanel(wx.Panel):
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
         self.pdf_tab_panel = PdfPanel(parent=self.action_tabs,
                                       id=wx.ID_ANY,
-                                      family_provider=self,
-                                      fee_provider=fee_provider,
                                       border=border)
         self.email_tab_panel = EmailPanel(parent=self.action_tabs,
                                           id=wx.ID_ANY,
-                                          family_provider=self,
-                                          fee_provider=fee_provider,
                                           border=border)
 
+        # We are the family provider
+        self.pdf_tab_panel.set_family_provider(self)
+        self.email_tab_panel.set_family_provider(self)
+
         self.__do_layout(border)
+
+        # Will be set later by set_fee_provider():
+        self.fee_provider = None
 
         self.families = {}
         self.class_map = {}
@@ -81,6 +84,10 @@ class EnrollmentPanel(wx.Panel):
         self.modified = modified
         self.pdf_tab_panel.set_is_modified(modified)
         self.email_tab_panel.set_is_modified(modified)
+
+    def set_fee_provider(self, provider):
+        self.pdf_tab_panel.set_fee_provider(provider)
+        self.email_tab_panel.set_fee_provider(provider)
 
     def get_families(self):
         return self.families

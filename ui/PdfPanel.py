@@ -9,14 +9,14 @@ DEFAULT_BORDER = 5
 
 class PdfPanel(wx.Panel):
 
-    def __init__(self, family_provider, fee_provider, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_generate_master = wx.Button(self, wx.ID_ANY, "Generate Master PDF...")
         self.button_generate_invoices = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
 
-        self.family_provider = family_provider
-        self.fee_provider = fee_provider
+        self.family_provider = None
+        self.fee_provider = None
 
         self.modified = False
         self.error_msg = None
@@ -43,6 +43,12 @@ class PdfPanel(wx.Panel):
 
     def set_is_modified(self, modified=True):
         self.modified = modified
+
+    def set_family_provider(self, provider):
+        self.family_provider = provider
+
+    def set_fee_provider(self, provider):
+        self.fee_provider = provider
 
     def enable_buttons(self, enable=True):
         self.button_generate_master.Enable()

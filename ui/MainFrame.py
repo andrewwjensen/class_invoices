@@ -45,8 +45,6 @@ class MainFrame(wx.Frame):
         self.SetMinSize(size=(600, 400))
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
-        self.Bind(wx.EVT_MOVE, self.on_change)
-        self.Bind(wx.EVT_SIZE, self.on_change)
 
         self.error_msg = None
         self.modified = False
@@ -62,6 +60,8 @@ class MainFrame(wx.Frame):
         self.application_panel.set_is_modified(modified)
 
     def on_open(self, event=None):
+        if not self.is_safe_to_close():
+            return
         dirname = ''
         file_dialog = wx.FileDialog(parent=self,
                                     message="Choose a ClassInvoices file",
@@ -151,21 +151,8 @@ class MainFrame(wx.Frame):
         app_config.conf.Flush()
 
     def on_close(self, event=None):
-        if not self.is_modified():
+        if self.is_safe_to_close():
             self.Destroy()
-        else:
-            dlg = wx.MessageDialog(parent=self,
-                                   message="There are unsaved changes. Do you really want to close this application?",
-                                   caption="Unsaved Changes",
-                                   style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
-            result = dlg.ShowModal()
-            dlg.Destroy()
-            if result == wx.ID_OK:
-                self.Destroy()
-
-    def on_change(self, event=None):
-        self.modified = True
-        event.Skip()
 
     def check_error(self):
         if self.error_msg:
@@ -175,3 +162,18 @@ class MainFrame(wx.Frame):
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()
+
+    def is_safe_to_close(self):
+        """Check if we can safely discard the contents of the frame.
+        If any data is modified, display a popup asking the user to continue or cancel.
+        Returns True if there are no changes, or the user chose to discard changes."""
+        if not self.is_modified():
+            return True
+        dlg = wx.MessageDialog(parent=self,
+                               message="Unsaved changes will be lost if you continue.",
+                               caption="Discard Changes?",
+                               style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
+        dlg.EnableCloseButton()
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        return result == wx.ID_OK

@@ -17,16 +17,13 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
     def GetSortImages(self):
         return self.sm_dn, self.sm_up
 
-    def __init__(self, parent, my_id, editable_columns=None, *args, **kwargs):
+    def __init__(self, editable_columns=None, *args, **kwargs):
         """Create the main panel."""
-        wx.Panel.__init__(self, parent, my_id, *args, **kwargs)
-        if editable_columns is not None:
-            kwargs['editable_columns'] = editable_columns
-        self.list_ctrl = AutoWidthEditableListCtrl(self, wx.ID_ANY,
-                                                   style=wx.LC_REPORT | wx.LC_SINGLE_SEL,
-                                                   size=(1, 150),
-                                                   **kwargs)
-        self.editable_columns = editable_columns
+        wx.Panel.__init__(self, *args, **kwargs)
+        self.list_ctrl = AutoWidthEditableListCtrl(parent=self,
+                                                   id=wx.ID_ANY,
+                                                   editable_columns=editable_columns,
+                                                   style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
 
         #######################################################################
         # Set up column sorter mixin, which sorts table when column headers are clicked on

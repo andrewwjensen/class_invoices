@@ -1,15 +1,21 @@
+import logging
 import os
 import traceback
 
 import wx
 import wx.lib.newevent
 
+import app_config
 from model.family import load_families
 from ui.EmailPanel import EmailPanel
 from ui.PdfPanel import PdfPanel
 from ui.StudentPanel import StudentPanel
 
 DEFAULT_BORDER = 5
+
+logging.basicConfig()
+logger = logging.getLogger(app_config.APP_NAME)
+logger.setLevel(logging.INFO)
 
 
 class EnrollmentPanel(wx.Panel):
@@ -158,6 +164,7 @@ class EnrollmentPanel(wx.Panel):
             'families': self.families,
             'pdf_tab': self.pdf_tab_panel.get_data(),
             'email_tab': self.email_tab_panel.get_data(),
+            'selected_tab': self.action_tabs.GetSelection(),
         }
 
     def load_data(self, data):
@@ -165,3 +172,5 @@ class EnrollmentPanel(wx.Panel):
         self.refresh()
         self.pdf_tab_panel.load_data(data['pdf_tab'])
         self.email_tab_panel.load_data(data['email_tab'])
+        if 'selected_tab' in data:
+            self.action_tabs.SetSelection(data['selected_tab'])

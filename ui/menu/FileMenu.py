@@ -11,7 +11,7 @@ class FileMenu(wx.Menu):
         self.file_history = wx.FileHistory()
         self.file_history.Load(app_config.conf)
 
-        item = self.Append(wx.ID_OPEN, "&Open...\tCtrl-O", "Open a ClientInvoices file")
+        item = self.Append(wx.ID_OPEN, "&Open...\tCtrl-O", "Open a ClassInvoices file")
         self.Bind(wx.EVT_MENU, self.parent_frame.on_open, item)
         self.add_recent_files()
 

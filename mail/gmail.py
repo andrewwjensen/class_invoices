@@ -50,7 +50,7 @@ def get_credentials_dir():
     return credential_dir
 
 
-def authenticate(force_new=False):
+def authenticate(force_new=False, connect_to_google=True):
     """Get credentials to authenticate to Google for using Gmail API."""
     credentials = None
     # The config key GMAIL_TOKEN_KEY stores the user's access and refresh tokens, and is
@@ -64,9 +64,12 @@ def authenticate(force_new=False):
     if force_new or not credentials or not credentials.valid:
         if not force_new and credentials and credentials.expired and credentials.refresh_token:
             credentials.refresh(Request())
-        else:
+        elif connect_to_google:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             credentials = flow.run_local_server()
+        else:
+            # Caller did not want to retrieve new token now, just validate existing one.
+            return None
         # Save the credentials in config for the next run
         token = pickle.dumps(credentials)
         token_b64 = base64.b64encode(token)
@@ -79,7 +82,7 @@ def get_gmail_service():
     try:
         try:
             # Authenticate, or use refresh token
-            return build('gmail', 'v1', credentials=authenticate())
+            return build('gmail', 'v1', credentials=authenticate(), cache_discovery=False)
         except google.auth.exceptions.RefreshError:
             logger.exception('Token refresh failed.')
         # Since refresh failed, user probably revoked authorization. Try restarting
@@ -87,7 +90,7 @@ def get_gmail_service():
         return build('gmail', 'v1', credentials=authenticate(force_new=True))
     except oauthlib.oauth2.rfc6749.errors.OAuth2Error:
         pass
-    raise RuntimeError('Failed to authenticate to Google for sending mail.')
+    raise RuntimeError('Failed to authenticate to Google for sending mail. Please try again.')
 
 
 def create_message_with_attachment(sender, recipients, subject, body, data):
@@ -157,7 +160,7 @@ def create_draft(service, user_id, message_body):
     return draft
 
 
-def send_emails(subject, body, families, class_map, progress):
+def create_drafts(subject, body, families, class_map, progress):
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
@@ -178,4 +181,6 @@ def send_emails(subject, body, families, class_map, progress):
                                                      subject=subject,
                                                      body=body,
                                                      data=pdf_attachment)
-                create_draft(gmail_service, 'me', msg)
+                draft = create_draft(gmail_service, 'me', msg)
+                print(draft)
+                break

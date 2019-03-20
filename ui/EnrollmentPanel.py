@@ -109,6 +109,7 @@ class EnrollmentPanel(wx.Panel):
             path = os.path.join(dirname, filename)
             try:
                 self.load_enrollment_data(path)
+                self.pdf_tab_panel.load_data()
                 self.modified = True
             except Exception as e:
                 self.error_msg = "Error while opening enrollment file: " + str(e)

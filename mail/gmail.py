@@ -80,7 +80,7 @@ def authenticate(force_new=False, connect_to_google=True):
     return credentials
 
 
-def check_credentials(parent):
+def check_credentials(parent, no_action_popup=True):
     """Check if Gmail API credentials have been set up. Prompt user to set them up if not."""
     credentials = authenticate(connect_to_google=False)
     if credentials is None:
@@ -113,7 +113,7 @@ def check_credentials(parent):
             return True
         else:
             dlg.Destroy()
-    else:
+    elif no_action_popup:
         dlg = wx.MessageDialog(parent=parent,
                                message='Email is already properly set up.',
                                caption='No Action Needed',

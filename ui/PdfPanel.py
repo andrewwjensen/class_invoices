@@ -6,6 +6,7 @@ import wx.lib.newevent
 import app_config
 from mail import gmail
 from mail.gmail import check_credentials
+from model.columns import Column
 from pdf.generate import generate_invoices
 from util import start_thread
 
@@ -21,7 +22,7 @@ class PdfPanel(wx.Panel):
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
-        self.family_listctrl = wx.ListCtrl(parent=self)
+        self.family_listctrl = wx.ListCtrl(parent=self, style=wx.LC_REPORT)
         self.button_generate_master = wx.Button(self, wx.ID_ANY, "Generate Master PDF...")
         self.button_generate_invoices = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
         self.button_email_invoices = wx.Button(self, wx.ID_ANY, "Email Invoices...")
@@ -35,14 +36,19 @@ class PdfPanel(wx.Panel):
         self.__do_layout(border)
 
     def __do_layout(self, border):
-        sizer_pdf_tab = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_pdf_tab = wx.BoxSizer(wx.VERTICAL)
 
-        sizer_pdf_tab.Add(self.button_generate_master, 0, wx.ALL, border)
+        sizer_pdf_tab.Add(self.family_listctrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=border)
+
+        sizer_pdf_buttons = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_pdf_buttons.Add(self.button_generate_master, 0, wx.ALL, border)
         self.Bind(wx.EVT_BUTTON, self.on_generate_master, self.button_generate_master)
-        sizer_pdf_tab.Add(self.button_generate_invoices, 0, wx.ALL, border)
+        sizer_pdf_buttons.Add(self.button_generate_invoices, 0, wx.ALL, border)
         self.Bind(wx.EVT_BUTTON, self.on_generate_invoices, self.button_generate_invoices)
-        sizer_pdf_tab.Add(self.button_email_invoices, 0, wx.ALL, border)
+        sizer_pdf_buttons.Add(self.button_email_invoices, 0, wx.ALL, border)
         self.Bind(wx.EVT_BUTTON, self.on_email, self.button_email_invoices)
+        sizer_pdf_tab.Add(sizer_pdf_buttons, 0, wx.ALL, border)
+
         self.SetSizer(sizer_pdf_tab)
 
         self.button_generate_master.Disable()
@@ -99,7 +105,7 @@ class PdfPanel(wx.Panel):
                 self.error_msg = 'Email subject may not be empty.'
             elif not body.strip():
                 self.error_msg = 'Enter a message body before sending email.'
-            elif check_credentials(parent=self):
+            elif check_credentials(parent=self, no_action_popup=False):
                 self.ask_to_send_email(subject, body)
             self.check_error()
         except Exception as e:
@@ -166,5 +172,33 @@ class PdfPanel(wx.Panel):
     def get_data(self):
         return {}
 
-    def load_data(self, data):
-        pass
+    def load_data(self, data=None):
+        self.family_listctrl.DeleteAllItems()
+        self.family_listctrl.DeleteAllColumns()
+        self.family_listctrl.InsertColumn(0, 'Family Name')
+        self.family_listctrl.InsertColumn(1, 'Num Parents')
+        self.family_listctrl.InsertColumn(2, 'Num Students')
+        total_parents = 0
+        total_emails = 0
+        total_students = 0
+        for r, family in enumerate(self.family_provider.get_families().values()):
+            last_names = set()
+            num_parents = 0
+            num_emails = 0
+            num_students = 0
+            for parent in family['parents']:
+                num_parents += 1
+                if parent[Column.EMAIL]:
+                    num_emails += 1
+                last_names.add(parent[Column.LAST_NAME])
+            for student in family['students']:
+                num_students += 1
+                last_names.add(student[Column.LAST_NAME])
+            self.family_listctrl.InsertItem(r, '/'.join(sorted(last_names)))
+            self.family_listctrl.SetItem(r, 1, str(num_parents))
+            self.family_listctrl.SetItem(r, 2, str(num_students))
+            total_parents += num_parents
+            total_emails += num_emails
+            total_students += num_students
+        for c in range(3):
+            self.family_listctrl.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)

@@ -63,7 +63,7 @@ class ApplicationPanel(wx.Panel):
 
     def __set_properties(self):
         # begin wxGlade: MyFrame.__set_properties
-        self.splitter.SetMinimumPaneSize(350)
+        self.splitter.SetMinimumPaneSize(500)
         # end wxGlade
 
     def __do_layout(self):

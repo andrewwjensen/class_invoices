@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import pickle
+import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -17,6 +18,7 @@ import app_config
 from model.columns import Column
 from model.family import get_students
 from pdf.generate import create_invoice
+from util import start_thread
 
 PROJECT_ID = 'class-invoices'
 OAUTH_CLIENT_ID = '344465743544-80i03jq6qvshuva8gsd1o6558suotq4e.apps.googleusercontent.com'
@@ -76,6 +78,72 @@ def authenticate(force_new=False, connect_to_google=True):
         app_config.conf.Write(app_config.GMAIL_TOKEN_KEY, token_b64)
         app_config.conf.Flush()
     return credentials
+
+
+def check_credentials(parent):
+    """Check if Gmail API credentials have been set up. Prompt user to set them up if not."""
+    credentials = authenticate(connect_to_google=False)
+    if credentials is None:
+        msg = 'In order to use the email feature, you must have a Gmail account. You need to' \
+              ' log in to Google and authorize this app to send email on your' \
+              ' behalf. Do you wish to do this now? (You will be redirected to your browser)'
+        caption = 'Google Authentication Required'
+        dlg = wx.MessageDialog(parent=parent,
+                               message=msg,
+                               caption=caption,
+                               style=wx.OK | wx.CANCEL)
+        if dlg.ShowModal() == wx.ID_OK:
+            dlg.Destroy()
+            wx.Yield()  # Make sure dialog goes away before we open a new one
+            wait_dialog = wx.ProgressDialog(
+                parent=parent,
+                title='Waiting for response from Google...',
+                message='Respond to prompts in your browser. This\n'
+                        'dialog will close automatically after you\n'
+                        'approve or deny the authentication request.',
+                style=wx.PD_APP_MODAL | wx.PD_CAN_ABORT,
+                maximum=0,
+            )
+            wait_dialog.Pulse()
+            start_thread(authenticate_with_google, wait_dialog)
+            start_thread(check_for_cancel_thread, wait_dialog)
+            wait_dialog.ShowModal()
+            if parent.error_msg:
+                return False
+            return True
+        else:
+            dlg.Destroy()
+    else:
+        dlg = wx.MessageDialog(parent=parent,
+                               message='Email is already properly set up.',
+                               caption='No Action Needed',
+                               style=wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+    return credentials is not None
+
+
+def authenticate_with_google(parent, wait_dialog):
+    parent.error_msg = 'Unable to authorize. Please try again.'
+    if authenticate():
+        parent.error_msg = None
+    # The following will throw RuntimeError exceptions if the dialog has already
+    # been destroyed by the progress thread (i.e. due to the user hitting the
+    # Cancel button). But this is pretty harmless. It just displays a couple
+    # tracebacks in the log.
+    wx.CallAfter(wait_dialog.EndModal, 0)
+    wx.CallAfter(wait_dialog.Destroy)
+
+
+def check_for_cancel_thread(wait_dialog):
+    try:
+        while not wait_dialog.WasCancelled():
+            time.sleep(0.1)  # prevent tight loop
+        wx.CallAfter(wait_dialog.EndModal, 0)
+        wx.CallAfter(wait_dialog.Destroy)
+    except RuntimeError:
+        # This will happen when the dialog is destroyed
+        pass
 
 
 def get_gmail_service():

@@ -24,8 +24,8 @@ class AutoWidthEditableListCtrl(wx.ListCtrl,
     def is_modified(self):
         return self.modified
 
-    def set_is_modified(self, modified=True):
-        self.modified = modified
+    def clear_is_modified(self):
+        self.modified = False
 
     def OpenEditor(self, col, row):
         if col in self.editable_columns:

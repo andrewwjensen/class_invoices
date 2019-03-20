@@ -55,9 +55,9 @@ class MainFrame(wx.Frame):
     def is_modified(self):
         return self.modified or self.application_panel.is_modified()
 
-    def set_is_modified(self, modified=True):
-        self.modified = modified
-        self.application_panel.set_is_modified(modified)
+    def clear_is_modified(self):
+        self.modified = False
+        self.application_panel.clear_is_modified()
 
     def on_open(self, event=None):
         if not self.is_safe_to_close():
@@ -92,7 +92,7 @@ class MainFrame(wx.Frame):
             self.SetPosition(data['position'])
             self.SetSize(data['size'])
             self.application_panel.load_data(data['application_panel'])
-            self.set_is_modified(False)
+            self.clear_is_modified()
 
     def on_save(self, event=None):
         path = None
@@ -103,7 +103,7 @@ class MainFrame(wx.Frame):
                 with open(path, 'wb') as f:
                     pickle.dump(doc, f)
                 self.update_file_history(path)
-                self.set_is_modified(False)
+                self.clear_is_modified()
                 self.saved_filename = path
                 self.SetTitle(path)
         except Exception as e:

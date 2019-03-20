@@ -80,9 +80,9 @@ class ApplicationPanel(wx.Panel):
     def is_modified(self):
         return self.enrollment_panel.is_modified() or self.fee_schedule_panel.is_modified()
 
-    def set_is_modified(self, modified=True):
-        self.enrollment_panel.set_is_modified(modified)
-        self.fee_schedule_panel.set_is_modified(modified)
+    def clear_is_modified(self):
+        self.enrollment_panel.clear_is_modified()
+        self.fee_schedule_panel.clear_is_modified()
 
     def on_resize(self, event=None):
         """Window has been resized, so we need to adjust the sash based on self.proportion."""

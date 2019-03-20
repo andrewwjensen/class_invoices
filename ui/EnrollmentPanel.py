@@ -37,12 +37,10 @@ class EnrollmentPanel(wx.Panel):
 
         # We are the family provider
         self.pdf_tab_panel.set_family_provider(self)
-        self.email_tab_panel.set_family_provider(self)
+        self.pdf_tab_panel.set_email_provider(self.email_tab_panel)
 
         self.__do_layout(border)
-
-        # Will be set later by set_fee_provider():
-        self.fee_provider = None
+        self.SetMinSize((500, 200))
 
         self.families = {}
         self.class_map = {}
@@ -84,16 +82,14 @@ class EnrollmentPanel(wx.Panel):
         self.SetSizer(sizer_enrollment_split)
 
     def is_modified(self):
-        return self.modified or self.pdf_tab_panel.is_modified() or self.email_tab_panel.is_modified()
+        return self.modified or self.email_tab_panel.is_modified()
 
-    def set_is_modified(self, modified=True):
-        self.modified = modified
-        self.pdf_tab_panel.set_is_modified(modified)
-        self.email_tab_panel.set_is_modified(modified)
+    def clear_is_modified(self):
+        self.modified = False
+        self.email_tab_panel.clear_is_modified()
 
     def set_fee_provider(self, provider):
         self.pdf_tab_panel.set_fee_provider(provider)
-        self.email_tab_panel.set_fee_provider(provider)
 
     def get_families(self):
         return self.families

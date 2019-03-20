@@ -8,9 +8,6 @@ from ui.AutoWidthListCtrl import AutoWidthEditableListCtrl
 # noinspection PyPep8Naming
 class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
 
-    def is_modified(self):
-        return self.modified
-
     def GetListCtrl(self):
         return self.list_ctrl
 
@@ -36,7 +33,6 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
 
         self.columns = set()  # Column names
         self.column = []  # Columns of data
-        self.modified = False
 
     def clear(self):
         self.list_ctrl.DeleteAllItems()

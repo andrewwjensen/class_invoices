@@ -54,8 +54,8 @@ class FeeSchedulePanel(ListSorterPanel):
     def is_modified(self):
         return self.list_ctrl.is_modified()
 
-    def set_is_modified(self, modified=True):
-        self.list_ctrl.set_is_modified(modified)
+    def clear_is_modified(self):
+        self.list_ctrl.clear_is_modified()
 
     def on_import(self, event=None):
         dirname = ''
@@ -71,7 +71,6 @@ class FeeSchedulePanel(ListSorterPanel):
             try:
                 fee_schedule_path = os.path.join(dirname, filename)
                 self.load_fee_schedule(fee_schedule_path)
-                self.modified = True
             except Exception as e:
                 self.error_msg = "Error while reading fee schedule: " + str(e)
                 logger.exception('Import error')

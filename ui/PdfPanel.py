@@ -102,14 +102,16 @@ class PdfPanel(wx.Panel):
         body = self.email_provider.text_ctrl_email_body.GetValue()
         try:
             if not subject.strip():
-                self.error_msg = 'Email subject may not be empty.'
+                self.error_msg = 'Email subject may not be empty. Please enter one in' \
+                                 ' the Email Setup tab before sending email.'
             elif not body.strip():
-                self.error_msg = 'Enter a message body before sending email.'
+                self.error_msg = 'Email message body may not be empty. Please enter' \
+                                 ' one in the Email Setup tab before sending email.'
             elif check_credentials(parent=self, no_action_popup=False):
                 self.ask_to_send_email(subject, body)
             self.check_error()
         except Exception as e:
-            self.error_msg = 'Error while sending email: ' + str(e)
+            self.error_msg = f'Error while sending email: {e}'
             logger.exception('could not send mail')
         self.check_error()
 

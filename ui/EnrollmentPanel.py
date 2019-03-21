@@ -25,6 +25,8 @@ class EnrollmentPanel(wx.Panel):
         wx.Panel.__init__(self, *args, **kwargs)
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
         self.button_show_students = wx.Button(self, wx.ID_ANY, "Show Student List...")
+        self.text_ctrl_pdf_note = wx.TextCtrl(parent=self, id=wx.ID_ANY,
+                                              value="", style=wx.TE_MULTILINE)
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)

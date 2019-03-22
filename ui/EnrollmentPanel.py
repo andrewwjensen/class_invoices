@@ -25,8 +25,6 @@ class EnrollmentPanel(wx.Panel):
         wx.Panel.__init__(self, *args, **kwargs)
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
         self.button_show_students = wx.Button(self, wx.ID_ANY, "Show Student List...")
-        self.text_ctrl_pdf_note = wx.TextCtrl(parent=self, id=wx.ID_ANY,
-                                              value="", style=wx.TE_MULTILINE)
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
@@ -50,12 +48,12 @@ class EnrollmentPanel(wx.Panel):
         self.error_msg = None
 
     def __do_layout(self, border):
-        sizer_enrollment_split = wx.BoxSizer(wx.VERTICAL)
-        sizer_enrollment_pane = wx.BoxSizer(wx.VERTICAL)
+        sizer_enrollment_panel = wx.BoxSizer(wx.VERTICAL)
+        sizer_enrollment_upper = wx.BoxSizer(wx.VERTICAL)
         sizer_stats = wx.BoxSizer(wx.HORIZONTAL)
 
         # Enrollment part, top of panel, above pdf/email notebook (tabbed panels)
-        sizer_enrollment_pane.Add(self.button_load_enrollment, 0, wx.ALL, border)
+        sizer_enrollment_upper.Add(self.button_load_enrollment, 0, wx.ALL, border)
         self.Bind(wx.EVT_BUTTON, self.on_load, self.button_load_enrollment)
         label_families = wx.StaticText(self, wx.ID_ANY, "Families:")
         sizer_stats.Add(label_families, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
@@ -69,10 +67,10 @@ class EnrollmentPanel(wx.Panel):
         sizer_stats.Add(label_students, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
         self.label_num_students = wx.StaticText(self, wx.ID_ANY, "0")
         sizer_stats.Add(self.label_num_students, 0, wx.RIGHT | wx.TOP | wx.BOTTOM, border)
-        sizer_enrollment_pane.Add(sizer_stats, 1, wx.EXPAND, border)
-        sizer_enrollment_pane.Add(self.button_show_students, 0, wx.ALL, border)
+        sizer_enrollment_upper.Add(sizer_stats, 1, wx.EXPAND, border)
+        sizer_enrollment_upper.Add(self.button_show_students, 0, wx.ALL, border)
         self.Bind(wx.EVT_BUTTON, self.show_students, self.button_show_students)
-        sizer_enrollment_split.Add(sizer_enrollment_pane, 0, wx.EXPAND | wx.ALL, border)
+        sizer_enrollment_panel.Add(sizer_enrollment_upper, 0, wx.EXPAND | wx.ALL, border)
 
         # Disable all buttons except Load
         self.button_show_students.Disable()
@@ -80,15 +78,16 @@ class EnrollmentPanel(wx.Panel):
         # Pull it all together into the main sizer
         self.action_tabs.AddPage(self.pdf_tab_panel, self.pdf_tab_panel.get_name())
         self.action_tabs.AddPage(self.email_tab_panel, self.email_tab_panel.get_name())
-        sizer_enrollment_split.Add(self.action_tabs, 1, wx.EXPAND | wx.ALL, border)
-        self.SetSizer(sizer_enrollment_split)
+        sizer_enrollment_panel.Add(self.action_tabs, 1, wx.EXPAND | wx.ALL, border)
+        self.SetSizer(sizer_enrollment_panel)
 
     def is_modified(self):
-        return self.modified or self.email_tab_panel.is_modified()
+        return self.modified or self.email_tab_panel.is_modified() or self.pdf_tab_panel.is_modified()
 
     def clear_is_modified(self):
         self.modified = False
         self.email_tab_panel.clear_is_modified()
+        self.pdf_tab_panel.clear_is_modified()
 
     def set_fee_provider(self, provider):
         self.pdf_tab_panel.set_fee_provider(provider)
@@ -114,7 +113,7 @@ class EnrollmentPanel(wx.Panel):
                 self.pdf_tab_panel.load_data()
                 self.modified = True
             except Exception as e:
-                self.error_msg = "Error while opening enrollment file: " + str(e)
+                self.error_msg = f'Error while loading enrollment file: {e}'
                 traceback.print_exc()
         file_dialog.Destroy()
         self.check_error()

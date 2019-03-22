@@ -22,6 +22,8 @@ class PdfPanel(wx.Panel):
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
+        self.text_ctrl_pdf_note = wx.TextCtrl(parent=self, id=wx.ID_ANY,
+                                              value="", style=wx.TE_MULTILINE)
         self.family_listctrl = wx.ListCtrl(parent=self, style=wx.LC_REPORT)
         self.button_generate_master = wx.Button(self, wx.ID_ANY, "Generate Master PDF...")
         self.button_generate_invoices = wx.Button(self, wx.ID_ANY, "Generate Invoices...")
@@ -32,11 +34,18 @@ class PdfPanel(wx.Panel):
         self.email_provider = None
 
         self.error_msg = None
+        # Used to keep track if it changed, because the IsModified() method doesn't seem
+        # work properly with multi-line TextCtrl
+        self.note_text = None
 
         self.__do_layout(border)
 
     def __do_layout(self, border):
         sizer_pdf_tab = wx.BoxSizer(wx.VERTICAL)
+
+        label_note = wx.StaticText(self, wx.ID_ANY, "Note to add to PDF invoices:")
+        sizer_pdf_tab.Add(label_note, 0, wx.ALL, border)
+        sizer_pdf_tab.Add(self.text_ctrl_pdf_note, 1, wx.EXPAND | wx.ALL, border)
 
         sizer_pdf_tab.Add(self.family_listctrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=border)
 
@@ -172,9 +181,13 @@ class PdfPanel(wx.Panel):
             dlg.Destroy()
 
     def get_data(self):
-        return {}
+        return {
+            'note': self.text_ctrl_pdf_note.GetValue(),
+        }
 
     def load_data(self, data=None):
+        if 'note' in data:
+            self.text_ctrl_pdf_note.SetValue(data['note'])
         self.family_listctrl.DeleteAllItems()
         self.family_listctrl.DeleteAllColumns()
         self.family_listctrl.InsertColumn(0, 'Family Name')
@@ -204,3 +217,9 @@ class PdfPanel(wx.Panel):
             total_students += num_students
         for c in range(3):
             self.family_listctrl.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)
+
+    def is_modified(self):
+        return self.text_ctrl_pdf_note.GetValue() != self.note_text
+
+    def clear_is_modified(self):
+        self.note_text = self.text_ctrl_pdf_note.GetValue()

@@ -23,6 +23,9 @@ class EmailPanel(wx.Panel):
         self.text_ctrl_email_body = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
 
         self.error_msg = None
+        # Used to keep track if it changed, because the IsModified() method doesn't seem
+        # work properly with multi-line TextCtrl
+        self.body_text = None
 
         self.__do_layout(border)
 
@@ -52,10 +55,11 @@ class EmailPanel(wx.Panel):
         return 'Email Setup'
 
     def is_modified(self):
-        return self.text_ctrl_email_body.IsModified() or self.text_ctrl_email_subject.IsModified()
+        body_is_modified = self.text_ctrl_email_body.GetValue() != self.body_text
+        return body_is_modified or self.text_ctrl_email_subject.IsModified()
 
     def clear_is_modified(self):
-        self.text_ctrl_email_body.SetModified(False)
+        self.body_text = self.text_ctrl_email_body.GetValue()
         self.text_ctrl_email_subject.SetModified(False)
 
     def enable_buttons(self, enable=True):

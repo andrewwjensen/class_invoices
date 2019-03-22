@@ -77,6 +77,9 @@ class ApplicationPanel(wx.Panel):
         self.Layout()
         # end wxGlade
 
+    def close(self):
+        self.enrollment_panel.close()
+
     def is_modified(self):
         return self.enrollment_panel.is_modified() or self.fee_schedule_panel.is_modified()
 

@@ -152,6 +152,7 @@ class MainFrame(wx.Frame):
 
     def on_close(self, event=None):
         if self.is_safe_to_close():
+            self.application_panel.close()
             self.Destroy()
 
     def check_error(self):

@@ -81,6 +81,9 @@ class EnrollmentPanel(wx.Panel):
         sizer_enrollment_panel.Add(self.action_tabs, 1, wx.EXPAND | wx.ALL, border)
         self.SetSizer(sizer_enrollment_panel)
 
+    def close(self):
+        self.pdf_tab_panel.close()
+
     def is_modified(self):
         return self.modified or self.email_tab_panel.is_modified() or self.pdf_tab_panel.is_modified()
 
@@ -110,7 +113,7 @@ class EnrollmentPanel(wx.Panel):
             path = os.path.join(dirname, filename)
             try:
                 self.load_enrollment_data(path)
-                self.pdf_tab_panel.load_data()
+                self.pdf_tab_panel.populate_family_list()
                 self.modified = True
             except Exception as e:
                 self.error_msg = f'Error while loading enrollment file: {e}'

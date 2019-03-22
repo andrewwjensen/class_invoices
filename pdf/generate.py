@@ -148,7 +148,8 @@ def generate_invoices(families, class_map, note, output_file, progress):
         rml2pdf.go(rml, outputFileName=output_file)
     finally:
         wx.CallAfter(progress.EndModal, 0)
-        wx.CallAfter(progress.Destroy)
+        # This line causes a seg fault on Linux. TODO: investigate if destruction occurs elsewhere
+        # wx.CallAfter(progress.Destroy)
 
 
 def start_rml(rml_file):

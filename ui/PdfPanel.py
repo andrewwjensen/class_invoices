@@ -1,5 +1,5 @@
-import io
 import logging
+import tempfile
 
 import wx
 import wx.lib.newevent
@@ -34,6 +34,7 @@ class PdfPanel(wx.Panel):
         self.family_provider = None
         self.fee_provider = None
         self.email_provider = None
+        self.pdf_viewer = None
 
         self.error_msg = None
         # Used to keep track if it changed, because the IsModified() method doesn't seem
@@ -66,6 +67,10 @@ class PdfPanel(wx.Panel):
         self.button_generate_invoices.Disable()
         self.button_email_invoices.Disable()
 
+    def close(self):
+        if self.pdf_viewer is not None:
+            self.pdf_viewer.Close()
+
     def get_name(self):
         return 'PDF'
 
@@ -96,25 +101,35 @@ class PdfPanel(wx.Panel):
         self.check_error()
 
     def on_generate_invoices(self, event=None):
-        families = self.family_provider.get_families()
-        progress = wx.ProgressDialog("Generating Invoices",
-                                     "Please wait...\n\n"
-                                     "Generating invoice for family:",
-                                     maximum=len(families), parent=self,
-                                     style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
-                                     )
-        class_map = self.fee_provider.generate_class_map()
-        note = self.text_ctrl_pdf_note.GetValue()
-        output = MyBytesIO()
-        start_thread(generate_invoices, families, class_map, note, output, progress)
-        progress.ShowModal()
+        if self.pdf_viewer is not None:
+            return
+        pdf_buffer = MyBytesIO()
+        try:
+            families = self.family_provider.get_families()
+            self.fee_provider.validate_fee_schedule(families)
+            progress = wx.ProgressDialog("Generating Invoices",
+                                         "Please wait...\n\n"
+                                         "Generating invoice for family:",
+                                         maximum=len(families), parent=self,
+                                         style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
+                                         )
+            class_map = self.fee_provider.generate_class_map()
+            note = self.text_ctrl_pdf_note.GetValue()
+            start_thread(generate_invoices, families, class_map, note, pdf_buffer, progress)
+            progress.ShowModal()
+        except RuntimeError as e:
+            logger.exception('error generating invoices')
+            self.error_msg = f'error generating invoices: {e}'
         if not self.check_error():
-            with open('tst.pdf', 'wb') as f:
-                f.write(output.getvalue())
-            inpput_file = io.BytesIO(output.getvalue())
-            pdfV = PDFViewer(None, size=(800, 600))
-            pdfV.viewer.LoadFile(inpput_file)
-            pdfV.Show()
+            # Need to write to temporary file instead of passing the buffer object directly, or
+            # else the PDFViewer "Save As" button does not work.
+            tmp_file = tempfile.NamedTemporaryFile()
+            tmp_file.write(pdf_buffer.getvalue())
+            tmp_file.flush()
+            pdf_buffer.seek(0)
+            self.pdf_viewer = PDFViewer(None, size=(800, 600))
+            self.pdf_viewer.viewer.LoadFile(tmp_file.name)
+            self.pdf_viewer.Show()
 
     def on_email(self, event=None):
         subject = self.email_provider.text_ctrl_email_subject.GetValue()
@@ -198,6 +213,9 @@ class PdfPanel(wx.Panel):
     def load_data(self, data=None):
         if 'note' in data:
             self.text_ctrl_pdf_note.SetValue(data['note'])
+        self.populate_family_list()
+
+    def populate_family_list(self):
         # The following assumes the family_provider has already been populated with data
         self.family_listctrl.DeleteAllItems()
         self.family_listctrl.DeleteAllColumns()

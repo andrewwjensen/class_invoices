@@ -153,6 +153,7 @@ class FeeSchedulePanel(ListSorterPanel):
         self.Refresh()
 
     def generate_class_map(self):
+        """Create and return a map from class name to 2-tuple (teacher(str), fee(Decimal))."""
         class_map = {}
         for r in range(self.GetListCtrl().GetItemCount()):
             class_name = self.GetListCtrl().GetItem(r, 0).GetText().strip()
@@ -171,7 +172,6 @@ class FeeSchedulePanel(ListSorterPanel):
                     try:
                         teacher, fee = class_map[class_name]
                         if not teacher or not fee or not type(fee) == Decimal:
-                            print('fee', fee)
                             missing_fees.add(class_name)
                     except KeyError:
                         missing_fees.add(class_name)
@@ -182,9 +182,6 @@ class FeeSchedulePanel(ListSorterPanel):
             else:
                 missing_msg = '\n    '.join(sorted(missing_fees))
             raise RuntimeError('missing teacher or fee for classes:\n    ' + missing_msg)
-
-    def set_class_map(self, class_map):
-        self.class_map = class_map
 
     def check_error(self):
         if self.error_msg:

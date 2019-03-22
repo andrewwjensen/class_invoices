@@ -39,7 +39,7 @@ class FileMenu(wx.Menu):
         self.file_history.UseMenu(recent)
         self.file_history.AddFilesToMenu()
         recent.Bind(wx.EVT_MENU_RANGE, self.on_file_history, id=wx.ID_FILE1, id2=wx.ID_FILE9)
-        self.Append(wx.ID_ANY, "Open &Recent", recent)
+        self.AppendSubMenu(recent, "Open &Recent")
 
     def on_file_history(self, event=None):
         file_num = event.GetId() - wx.ID_FILE1

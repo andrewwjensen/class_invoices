@@ -1,7 +1,6 @@
 import datetime
 import io
 import logging
-import traceback
 from decimal import Decimal
 
 import wx
@@ -10,9 +9,8 @@ from z3c.rml import rml2pdf
 import app_config
 from model.columns import Column
 from model.family import get_parents, get_students
-from pdf.my_bytes_io import MyBytesIO
 
-INVOICE_RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
+RML_BEGIN_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
 <document filename="invoice.pdf" invariant="1">
 
   <template pagesize="letter" leftMargin="72">
@@ -35,6 +33,8 @@ INVOICE_RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
                spaceBefore="12" spaceAfter="12"/>
     <paraStyle name="bold" fontName="Times-Bold" fontSize="10" leading="12"/>
     <paraStyle name="normal" fontName="Times-Roman" fontSize="10" leading="12"/>
+    <paraStyle name="medium" fontName="Times-Bold" fontSize="12" leading="12"
+               spaceBefore="6"/>
     <blockTableStyle id="students">
       <blockFont name="Times-Bold" size="12" start="0,0" stop="-1,0"/>
       <blockFont name="Times-Roman" size="10" start="0,1" stop="-1,-1"/>
@@ -49,6 +49,9 @@ INVOICE_RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
   </stylesheet>
 
   <story>
+"""
+
+RML_INVOICE_TEMPLATE = """\
     <para style="title">Parents</para>
     <blockTable alignment="left">
       {parents}
@@ -63,25 +66,73 @@ INVOICE_RML_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
     <blockTable alignment="left" style="payables">
       {payables}
     </blockTable>
+"""
 
+RML_NEXT_PAGE = """\
+    <nextPage/>
+"""
+RML_END_TEMPLATE = """\
   </story>
 
 </document>
 """
-PARAGRAPH_TEMPLATE = '<para style="{style}">{msg}</para>'
+
+RML_HORIZONTAL_LINE = """\
+<hr width="80%" thickness="1" color="black" spaceAfter="5" spaceBefore="10" align="left"/>
+"""
+
+RML_PARAGRAPH_TEMPLATE = '<para style="{style}">{msg}</para>'
 
 logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
 logger.setLevel(logging.INFO)
 
 
-def pad_str(s, n):
-    s += ' '
-    return s + '_' * (n - len(s))
+def create_invoice_object(family, class_map, note):
+    """Create an invoice object from a family object.
+    Formats names and emails, collates classes by teacher, and sums
+    class fees by teacher."""
+    invoice = {}
+    parents = get_parents(family)
+    students = get_students(family)
+    invoice['parent'] = []
+    for parent in parents:
+        invoice['parent'].append([
+            parent[Column.LAST_NAME] + ', ' + parent[Column.FIRST_NAME],
+            parent[Column.EMAIL]])
+    payable = {}
+    invoice['students'] = {}
+    invoice['total'] = Decimal(0.00)
+    invoice['note'] = note
+    for student in students:
+        name = student[Column.LAST_NAME] + ', ' + student[Column.FIRST_NAME]
+        invoice['students'][name] = []
+        for class_name in student[Column.CLASSES]:
+            teacher, fee = class_map[class_name]
+            invoice['students'][name].append([class_name, teacher, fee])
+            invoice['total'] += fee
+            try:
+                payable[teacher] += fee
+            except KeyError:
+                payable[teacher] = fee
+    invoice['payable'] = payable
+    return invoice
 
 
-def generate_invoices(families, class_map, progress):
+def generate_one_invoice(family, class_map, note, output_file):
+    rml = io.BytesIO()
+    start_rml(rml)
+    invoice = create_invoice_object(family, class_map, note)
+    generate_invoice_page_rml(invoice, rml)
+    finish_rml(rml)
+    rml.seek(0)
+    rml2pdf.go(rml, outputFileName=output_file)
+
+
+def generate_invoices(families, class_map, note, output_file, progress):
     try:
+        rml = io.StringIO()
+        start_rml(rml)
         for n, family in enumerate(families.values()):
             if progress.WasCancelled():
                 break
@@ -89,32 +140,27 @@ def generate_invoices(families, class_map, progress):
                 f"Generating invoice for family: {family['last_name']}"
             wx.CallAfter(progress.Update, n, newmsg=msg)
             if get_students(family):
-                with open(f'invoice{n + 1:03}.pdf', 'wb') as f:
-                    f.write(create_invoice(family, class_map))
-    except Exception as e:
-        error_msg = "Error while generating invoices: " + str(e)
-        traceback.print_exc()
-    wx.CallAfter(progress.EndModal, 0)
-    wx.CallAfter(progress.Destroy)
+                invoice = create_invoice_object(family, class_map, note)
+                generate_invoice_page_rml(invoice, rml)
+        finish_rml(rml)
+        # print('rml:', rml.getvalue())
+        rml.seek(0)
+        rml2pdf.go(rml, outputFileName=output_file)
+    finally:
+        wx.CallAfter(progress.EndModal, 0)
+        wx.CallAfter(progress.Destroy)
 
 
-def generate_table_row_rml(elements, style=None):
-    style_open = ''
-    style_close = ''
-    if style is not None:
-        style_open = f'<para style="{style}">'
-        style_close = '</para>'
-
-    row = '<tr>\n'
-    for elt in elements:
-        row += f'<td>{style_open}{elt}{style_close}</td>\n'
-    row += '</tr>\n'
-    return row
-
-
-def generate(invoice, filename):
+def start_rml(rml_file):
     now = datetime.datetime.now()
+    rml_file.write(RML_BEGIN_TEMPLATE.format(date=now.strftime('%a %b %d, %Y')))
 
+
+def finish_rml(rml_file):
+    rml_file.write(RML_END_TEMPLATE)
+
+
+def generate_invoice_page_rml(invoice, rml_file):
     parents_rml = ''
     for parent in invoice['parent']:
         parents_rml += generate_table_row_rml(parent)
@@ -138,45 +184,30 @@ def generate(invoice, filename):
     for teacher, fee in sorted(invoice['payable'].items()):
         payables_rml += generate_table_row_rml([teacher, '$' + str(fee)])
 
-    rml = INVOICE_RML_TEMPLATE.format(parents=parents_rml,
+    rml = RML_INVOICE_TEMPLATE.format(parents=parents_rml,
                                       students=students_rml,
                                       payables=payables_rml,
+                                      note=invoice['note'],
                                       num_classes=num_classes + 1,
-                                      date=now.strftime('%a %b %d, %Y'),
-                                      filename=filename)
-    # print('rml:', rml)
+                                      filename='invoice.pdf')
+    rml_file.write(rml)
 
-    input_buf = io.StringIO(rml)
-    output_buf = MyBytesIO()
-    rml2pdf.go(input_buf, outputFileName=output_buf)
-    doc = output_buf.getvalue()
-    output_buf.real_close()
-
-    return doc
+    # Add note to RML
+    rml_file.write(RML_HORIZONTAL_LINE)
+    for line in invoice['note'].split('\n'):
+        rml_file.write(RML_PARAGRAPH_TEMPLATE.format(style='medium', msg=line))
+    rml_file.write(RML_NEXT_PAGE)
 
 
-def create_invoice(family, class_map):
-    invoice = {}
-    parents = get_parents(family)
-    students = get_students(family)
-    invoice['parent'] = []
-    for parent in parents:
-        invoice['parent'].append([
-            parent[Column.LAST_NAME] + ', ' + parent[Column.FIRST_NAME],
-            parent[Column.EMAIL]])
-    payable = {}
-    invoice['students'] = {}
-    invoice['total'] = Decimal(0.00)
-    for student in students:
-        name = student[Column.LAST_NAME] + ', ' + student[Column.FIRST_NAME]
-        invoice['students'][name] = []
-        for class_name in student[Column.CLASSES]:
-            teacher, fee = class_map[class_name]
-            invoice['students'][name].append([class_name, teacher, fee])
-            invoice['total'] += fee
-            try:
-                payable[teacher] += fee
-            except KeyError:
-                payable[teacher] = fee
-    invoice['payable'] = payable
-    return generate(invoice, 'invoice.pdf')
+def generate_table_row_rml(elements, style=None):
+    style_open = ''
+    style_close = ''
+    if style is not None:
+        style_open = f'<para style="{style}">'
+        style_close = '</para>'
+
+    row = '<tr>\n'
+    for elt in elements:
+        row += f'<td>{style_open}{elt}{style_close}</td>\n'
+    row += '</tr>\n'
+    return row

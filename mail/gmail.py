@@ -17,7 +17,7 @@ from googleapiclient.discovery import build
 import app_config
 from model.columns import Column
 from model.family import get_students
-from pdf.generate import create_invoice
+from pdf.generate import generate_one_invoice
 from util import start_thread
 
 PROJECT_ID = 'class-invoices'
@@ -240,7 +240,7 @@ def create_drafts(subject, body, families, class_map, progress):
             f"Emailing invoice for family: {family['last_name']}"
         wx.CallAfter(progress.Update, n - 1, newmsg=msg)
         if get_students(family):
-            pdf_attachment = create_invoice(family, class_map)
+            pdf_attachment = generate_one_invoice(family, class_map)
             n += 1
             recipients = [p[Column.EMAIL] for p in family['parents']]
             if recipients:

@@ -1,3 +1,4 @@
+import io
 import logging
 
 import wx
@@ -8,7 +9,8 @@ from mail import gmail
 from mail.gmail import check_credentials
 from model.columns import Column
 from pdf.generate import generate_invoices
-from util import start_thread
+from ui.PDFViewer import PDFViewer
+from util import start_thread, MyBytesIO
 
 DEFAULT_BORDER = 5
 
@@ -47,7 +49,7 @@ class PdfPanel(wx.Panel):
         sizer_pdf_tab.Add(label_note, 0, wx.ALL, border)
         sizer_pdf_tab.Add(self.text_ctrl_pdf_note, 1, wx.EXPAND | wx.ALL, border)
 
-        sizer_pdf_tab.Add(self.family_listctrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=border)
+        sizer_pdf_tab.Add(self.family_listctrl, proportion=2, flag=wx.ALL | wx.EXPAND, border=border)
 
         sizer_pdf_buttons = wx.BoxSizer(wx.HORIZONTAL)
         sizer_pdf_buttons.Add(self.button_generate_master, 0, wx.ALL, border)
@@ -102,9 +104,17 @@ class PdfPanel(wx.Panel):
                                      style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
                                      )
         class_map = self.fee_provider.generate_class_map()
-        start_thread(generate_invoices, families, class_map, progress)
+        note = self.text_ctrl_pdf_note.GetValue()
+        output = MyBytesIO()
+        start_thread(generate_invoices, families, class_map, note, output, progress)
         progress.ShowModal()
-        self.check_error()
+        if not self.check_error():
+            with open('tst.pdf', 'wb') as f:
+                f.write(output.getvalue())
+            inpput_file = io.BytesIO(output.getvalue())
+            pdfV = PDFViewer(None, size=(800, 600))
+            pdfV.viewer.LoadFile(inpput_file)
+            pdfV.Show()
 
     def on_email(self, event=None):
         subject = self.email_provider.text_ctrl_email_subject.GetValue()
@@ -188,6 +198,7 @@ class PdfPanel(wx.Panel):
     def load_data(self, data=None):
         if 'note' in data:
             self.text_ctrl_pdf_note.SetValue(data['note'])
+        # The following assumes the family_provider has already been populated with data
         self.family_listctrl.DeleteAllItems()
         self.family_listctrl.DeleteAllColumns()
         self.family_listctrl.InsertColumn(0, 'Family Name')

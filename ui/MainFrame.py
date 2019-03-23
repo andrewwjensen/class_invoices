@@ -155,15 +155,22 @@ class MainFrame(wx.Frame):
             # One of the PDF viewer windows must be active. Find it and close it.
             viewers = self.application_panel.enrollment_panel.pdf_tab_panel.pdf_viewers
             for viewer in viewers:
-                if viewer.IsActive():
-                    viewer.Close()
+                try:
+                    if viewer.IsActive():
+                        viewer.Close()
+                        viewers.remove(viewer)
+                        break
+                except RuntimeError:
+                    # This can happen if the PDF viewer was closed via window close button,
+                    # so we didn't intercept the event and detect the close. Thus, the viewer
+                    # is still in the list, but does not exist anymore. Just remove it.
                     viewers.remove(viewer)
-                    break
-        elif self.is_safe_to_close():
+        else:
             # TODO: this should really do a "new document" action
             self.on_quit()
 
     def on_quit(self, event=None):
+        if self.is_safe_to_close():
             self.application_panel.close()
             self.Destroy()
 

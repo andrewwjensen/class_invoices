@@ -120,7 +120,7 @@ def create_invoice_object(family, class_map, note):
 
 
 def generate_one_invoice(family, class_map, note, output_file):
-    rml = io.BytesIO()
+    rml = io.StringIO()
     start_rml(rml)
     invoice = create_invoice_object(family, class_map, note)
     generate_invoice_page_rml(invoice, rml)

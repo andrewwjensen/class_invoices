@@ -18,7 +18,7 @@ import app_config
 from model.columns import Column
 from model.family import get_students
 from pdf.generate import generate_one_invoice
-from util import start_thread
+from util import start_thread, MyBytesIO
 
 PROJECT_ID = 'class-invoices'
 OAUTH_CLIENT_ID = '344465743544-80i03jq6qvshuva8gsd1o6558suotq4e.apps.googleusercontent.com'
@@ -161,12 +161,13 @@ def get_gmail_service():
     raise RuntimeError('Failed to authenticate to Google for sending mail. Please try again.')
 
 
-def create_message_with_attachment(sender, recipients, subject, body, data):
+def create_message_with_attachment(sender, recipients, cc, subject, body, data):
     """Create a message for an email.
 
     Args:
       sender: Email address of the sender.
       recipients: List of email addresses to receive the message.
+      cc: if 'cc', then cc the sender; likewise for 'bcc'; otherwise do not cc or bcc.
       subject: The subject of the email message.
       body: The text of the email message.
       data: The contents of the attachment.
@@ -179,6 +180,10 @@ def create_message_with_attachment(sender, recipients, subject, body, data):
     message['to'] = ', '.join(recipients)
     message['from'] = sender
     message['subject'] = subject
+    if cc == 'cc':
+        message['cc'] = sender
+    elif cc == 'bcc':
+        message['bcc'] = sender
 
     body = MIMEText(body)
     message.attach(body)
@@ -211,6 +216,31 @@ def send_message(service, user_id, message):
     return message
 
 
+def send_emails(subject, body, cc, families, class_map, note, progress):
+    gmail_service = get_gmail_service()
+    profile = gmail_service.users().getProfile(userId='me').execute()
+    sender = profile['emailAddress']
+    msg_prefix = progress.GetMessage()
+    for n, family in enumerate(families.values()):
+        if progress.WasCancelled():
+            break
+        msg = f"{msg_prefix}{family['last_name']}"
+        wx.CallAfter(progress.Update, n, newmsg=msg)
+        if get_students(family):
+            pdf_buffer = MyBytesIO()
+            generate_one_invoice(family, class_map, note, pdf_buffer)
+            parents = family['parents']
+            recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
+            if recipients:
+                msg = create_message_with_attachment(sender=sender,
+                                                     recipients=recipients,
+                                                     cc=cc,
+                                                     subject=subject,
+                                                     body=body,
+                                                     data=pdf_buffer.getvalue())
+                send_message(gmail_service, 'me', msg)
+
+
 def create_draft(service, user_id, message_body):
     """Create and insert a draft email.
 
@@ -228,27 +258,29 @@ def create_draft(service, user_id, message_body):
     return draft
 
 
-def create_drafts(subject, body, families, class_map, progress):
+def create_drafts(subject, body, cc, families, class_map, note, progress):
+    msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
-    n = 1
-    for family in families.values():
+    draft_ids = []
+    for n, family in enumerate(families.values()):
         if progress.WasCancelled():
             break
-        msg = "Please wait...\n\n" \
-            f"Emailing invoice for family: {family['last_name']}"
-        wx.CallAfter(progress.Update, n - 1, newmsg=msg)
+        msg = f"{msg_prefix}{family['last_name']}"
+        wx.CallAfter(progress.Update, n, newmsg=msg)
         if get_students(family):
-            pdf_attachment = generate_one_invoice(family, class_map)
-            n += 1
-            recipients = [p[Column.EMAIL] for p in family['parents']]
+            pdf_buffer = MyBytesIO()
+            generate_one_invoice(family, class_map, note, pdf_buffer)
+            parents = family['parents']
+            recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
             if recipients:
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
+                                                     cc=cc,
                                                      subject=subject,
                                                      body=body,
-                                                     data=pdf_attachment)
+                                                     data=pdf_buffer.getvalue())
                 draft = create_draft(gmail_service, 'me', msg)
-                print(draft)
-                break
+                draft_ids.append(draft['id'])
+    return draft_ids

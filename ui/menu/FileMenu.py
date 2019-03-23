@@ -32,7 +32,7 @@ class FileMenu(wx.Menu):
         # Note: using ID_QUIT does not allow us to intercept the event to, for example, offer
         # to save the document. So, use ID_ANY instead :-(
         item = self.Append(wx.ID_ANY, "E&xit\tCtrl-Q", "Close this application")
-        self.Bind(wx.EVT_MENU, self.parent_frame.on_close, item)
+        self.Bind(wx.EVT_MENU, self.parent_frame.on_quit, item)
 
     def add_recent_files(self):
         recent = wx.Menu()

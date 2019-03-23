@@ -42,7 +42,7 @@ class MainFrame(wx.Frame):
         self.SetStatusText("Ready to open registration CSV file")
 
         self.Fit()
-        self.SetMinSize(size=(600, 400))
+        self.SetMinSize((600, 500))
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
 

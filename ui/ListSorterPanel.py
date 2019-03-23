@@ -2,7 +2,7 @@ import wx
 from wx.lib.mixins import listctrl as listmix
 
 import images
-from ui.AutoWidthListCtrl import AutoWidthEditableListCtrl
+from ui.CustomListCtrl import EditableListCtrl
 
 
 # noinspection PyPep8Naming
@@ -17,10 +17,10 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
     def __init__(self, editable_columns=None, *args, **kwargs):
         """Create the main panel."""
         wx.Panel.__init__(self, *args, **kwargs)
-        self.list_ctrl = AutoWidthEditableListCtrl(parent=self,
-                                                   id=wx.ID_ANY,
-                                                   editable_columns=editable_columns,
-                                                   style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        self.list_ctrl = EditableListCtrl(parent=self,
+                                          id=wx.ID_ANY,
+                                          editable_columns=editable_columns,
+                                          style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
 
         #######################################################################
         # Set up column sorter mixin, which sorts table when column headers are clicked on

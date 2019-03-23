@@ -54,8 +54,10 @@ class PdfPanel(wx.Panel):
         label_note = wx.StaticText(self, wx.ID_ANY, "Note to add to PDF invoices:")
         sizer_pdf_tab.Add(label_note, 0, wx.ALL, border)
         sizer_pdf_tab.Add(self.text_ctrl_pdf_note, 1, wx.EXPAND | wx.ALL, border)
+        self.text_ctrl_pdf_note.SetMinSize((100, 100))
 
         sizer_pdf_tab.Add(self.family_listctrl, proportion=2, flag=wx.ALL | wx.EXPAND, border=border)
+        self.family_listctrl.SetMinSize((100, 100))
 
         sizer_pdf_buttons = wx.BoxSizer(wx.HORIZONTAL)
         sizer_pdf_buttons.Add(self.button_generate_master, 0, wx.ALL, border)

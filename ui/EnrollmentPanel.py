@@ -40,7 +40,7 @@ class EnrollmentPanel(wx.Panel):
         self.pdf_tab_panel.set_email_provider(self.email_tab_panel)
 
         self.__do_layout(border)
-        self.SetMinSize((500, 200))
+        self.SetMinSize((500, 400))
 
         self.families = {}
         self.class_map = {}

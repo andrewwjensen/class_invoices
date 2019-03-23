@@ -146,11 +146,11 @@ class PdfPanel(wx.Panel):
         tmp_file.write(pdf_buffer.getvalue())
         tmp_file.flush()
         self.temporary_files.add(tmp_file)
-        pdf_buffer.seek(0)
-        viewer = PdfViewer(None, size=(800, 600))
-        self.pdf_viewers.add(viewer)
-        viewer.viewer.LoadFile(tmp_file.name)
-        viewer.Show()
+
+        pdf_viewer = PdfViewer(None, size=(800, 1000))
+        self.pdf_viewers.add(pdf_viewer)
+        pdf_viewer.viewer.LoadFile(tmp_file.name)
+        pdf_viewer.Show()
 
     def on_email(self, event=None):
         subject = self.email_provider.text_ctrl_email_subject.GetValue()

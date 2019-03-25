@@ -19,7 +19,7 @@ class EmailPanel(wx.Panel):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_set_up_email = wx.Button(self, wx.ID_ANY, "Set Up Gmail Connection...")
-        self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_CENTER)
+        self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 25))
         self.text_ctrl_email_body = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
         self.combo_cc_bcc = wx.Choice(self, choices=['None', 'Cc', 'Bcc'], )
 
@@ -41,18 +41,18 @@ class EmailPanel(wx.Panel):
         sizer_email_tab_button_row = wx.BoxSizer(wx.HORIZONTAL)
 
         label_cc = wx.StaticText(self, wx.ID_ANY, "(B)cc myself?")
-        sizer_email_tab_cc_row.Add(label_cc, proportion=0, flag=wx.LEFT | wx.TOP, border=border)
-        sizer_email_tab_cc_row.Add(self.combo_cc_bcc, proportion=0, flag=wx.LEFT | wx.TOP, border=border)
+        sizer_email_tab_cc_row.Add(label_cc, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
+        sizer_email_tab_cc_row.Add(self.combo_cc_bcc, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
         sizer_email_tab.Add(sizer_email_tab_cc_row, proportion=0, flag=wx.LEFT, border=border)
 
         label_subject = wx.StaticText(self, wx.ID_ANY, "Email Subject Line:")
-        sizer_email_tab_subject_row.Add(label_subject, proportion=0, flag=wx.LEFT | wx.TOP, border=border)
+        sizer_email_tab_subject_row.Add(label_subject, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
         sizer_email_tab_subject_row.Add(self.text_ctrl_email_subject, proportion=0,
-                                        flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=border)
-        sizer_email_tab.Add(sizer_email_tab_subject_row, proportion=0, flag=wx.LEFT | wx.TOP, border=border)
+                                        flag=wx.EXPAND | wx.ALL, border=border)
+        sizer_email_tab.Add(sizer_email_tab_subject_row, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
 
         label_body = wx.StaticText(self, wx.ID_ANY, "Email Message Body:")
-        sizer_email_tab_body_row.Add(label_body, proportion=0, flag=wx.LEFT | wx.TOP, border=border)
+        sizer_email_tab_body_row.Add(label_body, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
         sizer_email_tab_body_row.Add(self.text_ctrl_email_body, proportion=1, flag=wx.EXPAND | wx.ALL, border=border)
         sizer_email_tab.Add(sizer_email_tab_body_row, proportion=1, flag=wx.EXPAND | wx.ALL, border=border)
 

@@ -216,7 +216,7 @@ def send_message(service, user_id, message):
     return message
 
 
-def send_emails(subject, body, cc, families, class_map, note, progress):
+def send_emails(subject, body, cc, families, class_map, note, term, progress):
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
@@ -228,7 +228,7 @@ def send_emails(subject, body, cc, families, class_map, note, progress):
         wx.CallAfter(progress.Update, n, newmsg=msg)
         if get_students(family):
             pdf_buffer = MyBytesIO()
-            generate_one_invoice(family, class_map, note, pdf_buffer)
+            generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
             recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
             if recipients:
@@ -258,7 +258,7 @@ def create_draft(service, user_id, message_body):
     return draft
 
 
-def create_drafts(subject, body, cc, families, class_map, note, progress):
+def create_drafts(subject, body, cc, families, class_map, note, term, progress):
     msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
@@ -271,7 +271,7 @@ def create_drafts(subject, body, cc, families, class_map, note, progress):
         wx.CallAfter(progress.Update, n, newmsg=msg)
         if get_students(family):
             pdf_buffer = MyBytesIO()
-            generate_one_invoice(family, class_map, note, pdf_buffer)
+            generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
             recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
             if recipients:

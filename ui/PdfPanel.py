@@ -24,6 +24,7 @@ class PdfPanel(wx.Panel):
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
+        self.text_ctrl_term = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 25))
         self.text_ctrl_pdf_note = wx.TextCtrl(parent=self, id=wx.ID_ANY,
                                               value="", style=wx.TE_MULTILINE)
         self.family_listctrl = wx.ListCtrl(parent=self, style=wx.LC_REPORT)
@@ -47,12 +48,19 @@ class PdfPanel(wx.Panel):
         self.error_msg = None
         # Used to keep track if it changed, because the IsModified() method doesn't seem
         # work properly with multi-line TextCtrl
+        self.term_text = None
         self.note_text = None
 
         self.__do_layout(border)
 
     def __do_layout(self, border):
         sizer_pdf_tab = wx.BoxSizer(wx.VERTICAL)
+        sizer_term_row = wx.BoxSizer(wx.HORIZONTAL)
+
+        label_subject = wx.StaticText(self, wx.ID_ANY, "Term:")
+        sizer_term_row.Add(label_subject, proportion=0)
+        sizer_term_row.Add(self.text_ctrl_term, proportion=1)
+        sizer_pdf_tab.Add(sizer_term_row, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
 
         label_note = wx.StaticText(self, wx.ID_ANY, "Note to add to PDF invoices:")
         sizer_pdf_tab.Add(label_note, 0, wx.ALL, border)
@@ -136,7 +144,8 @@ class PdfPanel(wx.Panel):
                                          )
             class_map = self.fee_provider.generate_class_map()
             note = self.text_ctrl_pdf_note.GetValue()
-            start_thread(generate_invoices, families, class_map, note, pdf_buffer, progress)
+            term = self.text_ctrl_term.GetValue()
+            start_thread(generate_invoices, families, class_map, note, term, pdf_buffer, progress)
             progress.ShowModal()
         except RuntimeError as e:
             logger.exception('error generating invoices')
@@ -232,6 +241,7 @@ class PdfPanel(wx.Panel):
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
+            term = self.text_ctrl_term.GetValue()
             class_map = self.fee_provider.generate_class_map()
             gmail.send_emails(subject,
                               body,
@@ -239,6 +249,7 @@ class PdfPanel(wx.Panel):
                               families,
                               class_map,
                               note,
+                              term,
                               progress)
         except KeyError as e:
             self.error_msg = "Missing teacher or fee for class while sending email: " + e.args[0]
@@ -265,6 +276,7 @@ class PdfPanel(wx.Panel):
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
+            term = self.text_ctrl_term.GetValue()
             class_map = self.fee_provider.generate_class_map()
             draft_ids = gmail.create_drafts(subject,
                                             body,
@@ -272,6 +284,7 @@ class PdfPanel(wx.Panel):
                                             families,
                                             class_map,
                                             note,
+                                            term,
                                             progress)
         except KeyError as e:
             self.error_msg = "Missing teacher or fee for class while creating drafts: " + e.args[0]
@@ -297,10 +310,13 @@ class PdfPanel(wx.Panel):
 
     def get_data(self):
         return {
+            'term': self.text_ctrl_term.GetValue(),
             'note': self.text_ctrl_pdf_note.GetValue(),
         }
 
     def load_data(self, data=None):
+        if 'term' in data:
+            self.text_ctrl_term.SetValue(data['term'])
         if 'note' in data:
             self.text_ctrl_pdf_note.SetValue(data['note'])
         self.populate_family_list()
@@ -340,9 +356,12 @@ class PdfPanel(wx.Panel):
             self.family_listctrl.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)
 
     def is_modified(self):
-        return self.text_ctrl_pdf_note.GetValue() != self.note_text
+        term_modified = self.text_ctrl_term.GetValue() != self.term_text
+        note_modified = self.text_ctrl_pdf_note.GetValue() != self.note_text
+        return term_modified or note_modified
 
     def clear_is_modified(self):
+        self.term_text = self.text_ctrl_term.GetValue()
         self.note_text = self.text_ctrl_pdf_note.GetValue()
 
     def get_selected_families(self):

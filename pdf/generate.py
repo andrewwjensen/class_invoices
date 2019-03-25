@@ -17,7 +17,7 @@ RML_BEGIN_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
     <pageTemplate id="main" pagesize="letter portrait">
       <pageGraphics>
         <setFont name="Times-Roman" size="24"/>
-        <drawString x="35" y="760">Class Enrollment Invoice</drawString>
+        <drawString x="35" y="760">Class Enrollment Invoice {term}</drawString>
         <setFont name="Times-Roman" size="12"/>
         <drawString x="35" y="740">Generated on {date}</drawString>
       </pageGraphics>
@@ -119,9 +119,9 @@ def create_invoice_object(family, class_map, note):
     return invoice
 
 
-def generate_one_invoice(family, class_map, note, output_file):
+def generate_one_invoice(family, class_map, note, term, output_file):
     rml = io.StringIO()
-    start_rml(rml)
+    start_rml(rml, term)
     invoice = create_invoice_object(family, class_map, note)
     generate_invoice_page_rml(invoice, rml)
     finish_rml(rml)
@@ -129,10 +129,10 @@ def generate_one_invoice(family, class_map, note, output_file):
     rml2pdf.go(rml, outputFileName=output_file)
 
 
-def generate_invoices(families, class_map, note, output_file, progress):
+def generate_invoices(families, class_map, note, term, output_file, progress):
     try:
         rml = io.StringIO()
-        start_rml(rml)
+        start_rml(rml, term)
         for n, family in enumerate(families.values()):
             if progress.WasCancelled():
                 break
@@ -152,9 +152,13 @@ def generate_invoices(families, class_map, note, output_file, progress):
         # wx.CallAfter(progress.Destroy)
 
 
-def start_rml(rml_file):
+def start_rml(rml_file, term):
+    if term:
+        term = f'({term})'
+    else:
+        term = ''
     now = datetime.datetime.now()
-    rml_file.write(RML_BEGIN_TEMPLATE.format(date=now.strftime('%a %b %d, %Y')))
+    rml_file.write(RML_BEGIN_TEMPLATE.format(date=now.strftime('%a %b %d, %Y'), term=term))
 
 
 def finish_rml(rml_file):

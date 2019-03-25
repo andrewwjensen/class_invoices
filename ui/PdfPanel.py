@@ -24,7 +24,7 @@ class PdfPanel(wx.Panel):
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
-        self.text_ctrl_term = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 25))
+        self.text_ctrl_term = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 30))
         self.text_ctrl_pdf_note = wx.TextCtrl(parent=self, id=wx.ID_ANY,
                                               value="", style=wx.TE_MULTILINE)
         self.family_listctrl = wx.ListCtrl(parent=self, style=wx.LC_REPORT)
@@ -328,20 +328,14 @@ class PdfPanel(wx.Panel):
         self.family_listctrl.InsertColumn(0, 'Family Name')
         self.family_listctrl.InsertColumn(1, 'Num Parents')
         self.family_listctrl.InsertColumn(2, 'Num Students')
-        total_parents = 0
-        total_emails = 0
-        total_students = 0
         self.row_to_family_id = {}
         for r, family in enumerate(self.family_provider.get_families().values()):
             self.row_to_family_id[r] = family['id']
             last_names = set()
             num_parents = 0
-            num_emails = 0
             num_students = 0
             for parent in family['parents']:
                 num_parents += 1
-                if parent[Column.EMAIL]:
-                    num_emails += 1
                 last_names.add(parent[Column.LAST_NAME])
             for student in family['students']:
                 num_students += 1
@@ -349,9 +343,6 @@ class PdfPanel(wx.Panel):
             self.family_listctrl.InsertItem(r, '/'.join(sorted(last_names)))
             self.family_listctrl.SetItem(r, 1, str(num_parents))
             self.family_listctrl.SetItem(r, 2, str(num_students))
-            total_parents += num_parents
-            total_emails += num_emails
-            total_students += num_students
         for c in range(3):
             self.family_listctrl.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)
 

@@ -19,7 +19,7 @@ class EmailPanel(wx.Panel):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.button_set_up_email = wx.Button(self, wx.ID_ANY, "Set Up Gmail Connection...")
-        self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 25))
+        self.text_ctrl_email_subject = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 30))
         self.text_ctrl_email_body = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
         self.combo_cc_bcc = wx.Choice(self, choices=['None', 'Cc', 'Bcc'], )
 

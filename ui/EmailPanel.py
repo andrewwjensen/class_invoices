@@ -57,7 +57,7 @@ class EmailPanel(wx.Panel):
         sizer_email_tab.Add(sizer_email_tab_body_row, proportion=1, flag=wx.EXPAND | wx.ALL, border=border)
 
         sizer_email_tab_button_row.Add(self.button_set_up_email, proportion=0, flag=wx.ALL, border=border)
-        self.Bind(wx.EVT_BUTTON, self.on_setup, self.button_set_up_email)
+        self.button_set_up_email.Bind(wx.EVT_BUTTON, self.on_setup)
         sizer_email_tab.Add(sizer_email_tab_button_row, proportion=0, flag=wx.ALL, border=border)
         self.SetSizer(sizer_email_tab)
 

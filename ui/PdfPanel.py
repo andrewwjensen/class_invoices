@@ -155,7 +155,7 @@ class PdfPanel(wx.Panel):
 
     def open_pdf_viewer(self, pdf_buffer):
         # Need to write to temporary file instead of passing the buffer object directly, or
-        # else the PDFViewer "Save As" button does not work.
+        # else the PdfViewer "Save As" button does not work.
         tmp_file = tempfile.NamedTemporaryFile()
         tmp_file.write(pdf_buffer.getvalue())
         tmp_file.flush()

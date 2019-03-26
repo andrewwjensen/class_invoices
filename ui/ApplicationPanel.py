@@ -3,33 +3,10 @@ import logging
 import wx
 
 import app_config
-from model.columns import Column
 from ui.EnrollmentPanel import EnrollmentPanel
 from ui.FeeSchedulePanel import FeeSchedulePanel
 
 BORDER_WIDTH = 5
-
-DISPLAY_TRANSFORMS = {
-    Column.CLASSES: lambda value: ', '.join(value),
-}
-
-COLUMN_DISPLAY_MAP = {
-    Column.FAMILY_ID: 'Family ID',
-    Column.REGISTERED: 'Register Date',
-    Column.MEMBER_TYPE: 'Parent/Student',
-    Column.LAST_NAME: 'Last Name',
-    Column.FIRST_NAME: 'First Name',
-    Column.EMAIL: 'E-mail Address',
-    Column.PARENT_TYPE: 'Mother/Father',
-    Column.PHONE: 'Phone',
-    Column.BIRTHDAY: 'Birthday',
-    Column.GENDER: 'Gender',
-    Column.GRADE: 'Grade',
-    Column.NOTES: 'Notes',
-    Column.NEW_STUDENT: 'New?',
-    Column.NONCONSECUTIVE: 'Nonconsecutive?',
-    Column.CLASSES: 'Classes',
-}
 
 logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
@@ -86,6 +63,9 @@ class ApplicationPanel(wx.Panel):
     def clear_is_modified(self):
         self.enrollment_panel.clear_is_modified()
         self.fee_schedule_panel.clear_is_modified()
+
+    def get_sub_windows(self):
+        return self.enrollment_panel.get_sub_windows()
 
     def on_resize(self, event=None):
         """Window has been resized, so we need to adjust the sash based on self.proportion."""

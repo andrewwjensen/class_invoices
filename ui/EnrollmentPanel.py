@@ -8,8 +8,8 @@ import wx.lib.newevent
 import app_config
 from model.family import load_families
 from ui.EmailPanel import EmailPanel
+from ui.FamilyListFrame import FamilyListFrame
 from ui.PdfPanel import PdfPanel
-from ui.StudentPanel import StudentPanel
 
 DEFAULT_BORDER = 5
 
@@ -24,7 +24,7 @@ class EnrollmentPanel(wx.Panel):
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
-        self.button_show_students = wx.Button(self, wx.ID_ANY, "Show Student List...")
+        self.button_show_students = wx.Button(self, wx.ID_ANY, "Preview Enrollment List...")
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
@@ -46,15 +46,22 @@ class EnrollmentPanel(wx.Panel):
         self.class_map = {}
         self.modified = False
         self.error_msg = None
+        self.sub_windows = set()
 
     def __do_layout(self, border):
         sizer_enrollment_panel = wx.BoxSizer(wx.VERTICAL)
         sizer_enrollment_upper = wx.BoxSizer(wx.VERTICAL)
+        sizer_buttons = wx.BoxSizer(wx.HORIZONTAL)
         sizer_stats = wx.BoxSizer(wx.HORIZONTAL)
 
         # Enrollment part, top of panel, above pdf/email notebook (tabbed panels)
-        sizer_enrollment_upper.Add(self.button_load_enrollment, 0, wx.ALL, border)
-        self.Bind(wx.EVT_BUTTON, self.on_load, self.button_load_enrollment)
+        sizer_buttons.Add(self.button_load_enrollment, 0, wx.ALL, border)
+        self.button_load_enrollment.Bind(wx.EVT_BUTTON, self.on_load)
+        sizer_buttons.Add(self.button_show_students, 0, wx.ALL, border)
+        self.button_show_students.Bind(wx.EVT_BUTTON, self.show_students)
+        sizer_enrollment_upper.Add(sizer_buttons)
+
+        # Stats
         label_families = wx.StaticText(self, wx.ID_ANY, "Families:")
         sizer_stats.Add(label_families, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
         self.label_num_families = wx.StaticText(self, wx.ID_ANY, "0")
@@ -68,8 +75,6 @@ class EnrollmentPanel(wx.Panel):
         self.label_num_students = wx.StaticText(self, wx.ID_ANY, "0")
         sizer_stats.Add(self.label_num_students, 0, wx.RIGHT | wx.TOP | wx.BOTTOM, border)
         sizer_enrollment_upper.Add(sizer_stats, 1, wx.EXPAND, border)
-        sizer_enrollment_upper.Add(self.button_show_students, 0, wx.ALL, border)
-        self.Bind(wx.EVT_BUTTON, self.show_students, self.button_show_students)
         sizer_enrollment_panel.Add(sizer_enrollment_upper, 0, wx.EXPAND | wx.ALL, border)
 
         # Disable all buttons except Load
@@ -148,8 +153,14 @@ class EnrollmentPanel(wx.Panel):
         self.pdf_tab_panel.enable_buttons(enable)
         self.email_tab_panel.enable_buttons(enable)
 
-    def show_students(self):
-        student_panel = StudentPanel(self, wx.ID_ANY)
+    def show_students(self, event=None):
+        family_frame = FamilyListFrame(parent=self)
+        family_frame.set_families(self.families)
+        self.sub_windows.add(family_frame)
+        family_frame.Show()
+
+    def get_sub_windows(self):
+        return self.sub_windows.union(self.pdf_tab_panel.get_sub_windows())
 
     def check_error(self):
         if self.error_msg:

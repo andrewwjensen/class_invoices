@@ -111,6 +111,9 @@ class PdfPanel(wx.Panel):
         self.button_generate_invoices.Enable()
         self.button_email_invoices.Enable(enable)
 
+    def get_sub_windows(self):
+        return self.pdf_viewers
+
     def on_generate_master(self, event=None):
         pdf_buffer = MyBytesIO()
         try:
@@ -155,7 +158,8 @@ class PdfPanel(wx.Panel):
 
     def open_pdf_viewer(self, pdf_buffer):
         # Need to write to temporary file instead of passing the buffer object directly, or
-        # else the PdfViewer "Save As" button does not work.
+        # else the PdfViewer "Save As" button does not work. Also, keep them open so they don't
+        # get deleted until we close the window.
         tmp_file = tempfile.NamedTemporaryFile()
         tmp_file.write(pdf_buffer.getvalue())
         tmp_file.flush()

@@ -152,19 +152,18 @@ class MainFrame(wx.Frame):
 
     def on_close(self, event=None):
         if not self.IsActive():
-            # One of the PDF viewer windows must be active. Find it and close it.
-            viewers = self.application_panel.enrollment_panel.pdf_tab_panel.pdf_viewers
-            for viewer in viewers:
+            # One of the sub windows must be active. Find it and close it.
+            windows = self.application_panel.get_sub_windows()
+            for window in windows:
                 try:
-                    if viewer.IsActive():
-                        viewer.Close()
-                        viewers.remove(viewer)
+                    if window.IsActive():
+                        window.Close()
                         break
                 except RuntimeError:
                     # This can happen if the PDF viewer was closed via window close button,
                     # so we didn't intercept the event and detect the close. Thus, the viewer
-                    # is still in the list, but does not exist anymore. Just remove it.
-                    viewers.remove(viewer)
+                    # is still in the list, but does not exist anymore.
+                    pass
         else:
             # TODO: this should really do a "new document" action
             self.on_quit()
@@ -193,7 +192,7 @@ class MainFrame(wx.Frame):
                                message="Unsaved changes will be lost if you continue.",
                                caption="Discard Changes?",
                                style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
-        dlg.EnableCloseButton()
+        dlg.SetOKLabel("Discard Changes")
         result = dlg.ShowModal()
         dlg.Destroy()
         return result == wx.ID_OK

@@ -158,9 +158,19 @@ class EnrollmentPanel(wx.Panel):
         family_frame.set_families(self.families)
         self.sub_windows.add(family_frame)
         family_frame.Show()
+        family_frame.Bind(wx.EVT_CLOSE, self.on_close_sub_window)
 
-    def get_sub_windows(self):
-        return self.sub_windows.union(self.pdf_tab_panel.get_sub_windows())
+    def on_close_sub_window(self, event=None):
+        self.sub_windows.remove(event.GetEventObject())
+        event.Skip()
+
+    def close_sub_window(self):
+        for window in self.sub_windows:
+            if window.IsActive():
+                window.Close()
+                break
+        else:
+            self.pdf_tab_panel.close_sub_window()
 
     def check_error(self):
         if self.error_msg:

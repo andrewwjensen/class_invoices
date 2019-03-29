@@ -45,4 +45,4 @@ class FileMenu(wx.Menu):
         file_num = event.GetId() - wx.ID_FILE1
         path = self.file_history.GetHistoryFile(file_num)
         self.file_history.AddFileToHistory(path)  # move this one to the top of the list
-        self.parent_frame.load_file(path)
+        self.parent_frame.check_modified_load_file(path)

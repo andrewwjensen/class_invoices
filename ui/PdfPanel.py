@@ -8,7 +8,7 @@ import app_config
 from mail import gmail
 from mail.gmail import check_credentials
 from model.columns import Column
-from pdf.generate import generate_invoices
+from pdf.generate import generate_invoices, generate_master
 from ui.PdfViewer import PdfViewer
 from util import start_thread, MyBytesIO
 
@@ -111,28 +111,29 @@ class PdfPanel(wx.Panel):
         self.button_generate_invoices.Enable()
         self.button_email_invoices.Enable(enable)
 
-    def get_sub_windows(self):
-        return self.pdf_viewers
+    def on_close_sub_window(self, event=None):
+        self.pdf_viewers.remove(event.GetEventObject())
+        event.Skip()
+
+    def close_sub_window(self):
+        for window in self.pdf_viewers:
+            if window.IsActive():
+                window.Close()
+                break
 
     def on_generate_master(self, event=None):
-        pdf_buffer = MyBytesIO()
         try:
+            pdf_buffer = MyBytesIO()
             families = self.get_selected_families()
-            self.fee_provider.validate_fee_schedule(families)
-            progress = wx.ProgressDialog("Generating Master PDF",
-                                         "Please wait...\n\n"
-                                         "Processing family:",
-                                         parent=self,
-                                         maximum=len(self.family_provider.get_families()),
-                                         style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT
-                                         )
-            # start_thread(generate_master, families, class_map, pdf_buffer, progress)
-            # progress.ShowModal()
+            if families:
+                self.fee_provider.validate_fee_schedule(families)
+                class_map = self.fee_provider.generate_class_map()
+                term = self.text_ctrl_term.GetValue()
+                generate_master(families, class_map, term, pdf_buffer)
+                self.open_pdf_viewer(pdf_buffer)
         except RuntimeError as e:
             logger.exception('error generating master PDF')
             self.error_msg = f'error generating master PDF: {e}'
-        if not self.check_error():
-            self.open_pdf_viewer(pdf_buffer)
 
     def on_generate_invoices(self, event=None):
         pdf_buffer = MyBytesIO()
@@ -150,11 +151,10 @@ class PdfPanel(wx.Panel):
             term = self.text_ctrl_term.GetValue()
             start_thread(generate_invoices, families, class_map, note, term, pdf_buffer, progress)
             progress.ShowModal()
+            self.open_pdf_viewer(pdf_buffer)
         except RuntimeError as e:
             logger.exception('error generating invoices')
             self.error_msg = f'error generating invoices: {e}'
-        if not self.check_error():
-            self.open_pdf_viewer(pdf_buffer)
 
     def open_pdf_viewer(self, pdf_buffer):
         # Need to write to temporary file instead of passing the buffer object directly, or
@@ -169,6 +169,7 @@ class PdfPanel(wx.Panel):
         self.pdf_viewers.add(pdf_viewer)
         pdf_viewer.viewer.LoadFile(tmp_file.name)
         pdf_viewer.Show()
+        pdf_viewer.Bind(wx.EVT_CLOSE, self.on_close_sub_window)
 
     def on_email(self, event=None):
         subject = self.email_provider.text_ctrl_email_subject.GetValue()

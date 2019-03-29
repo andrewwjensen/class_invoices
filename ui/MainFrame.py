@@ -79,6 +79,11 @@ class MainFrame(wx.Frame):
         file_dialog.Destroy()
         self.check_error()
 
+    def check_modified_load_file(self, path):
+        if not self.is_safe_to_close():
+            return
+        self.load_file(path)
+
     def load_file(self, path):
         with open(path, 'rb') as f:
             data = pickle.load(f)
@@ -153,17 +158,7 @@ class MainFrame(wx.Frame):
     def on_close(self, event=None):
         if not self.IsActive():
             # One of the sub windows must be active. Find it and close it.
-            windows = self.application_panel.get_sub_windows()
-            for window in windows:
-                try:
-                    if window.IsActive():
-                        window.Close()
-                        break
-                except RuntimeError:
-                    # This can happen if the PDF viewer was closed via window close button,
-                    # so we didn't intercept the event and detect the close. Thus, the viewer
-                    # is still in the list, but does not exist anymore.
-                    pass
+            self.application_panel.close_sub_window()
         else:
             # TODO: this should really do a "new document" action
             self.on_quit()

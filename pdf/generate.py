@@ -10,41 +10,85 @@ import app_config
 from model.columns import Column
 from model.family import get_parents, get_students
 
-RML_BEGIN_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
-<document filename="invoice.pdf" invariant="1">
+RML_BEGIN_TEMPLATE_PORTRAIT = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
+<document filename="master.pdf" invariant="1">
 
   <template pagesize="letter" leftMargin="72">
     <pageTemplate id="main" pagesize="letter portrait">
       <pageGraphics>
         <setFont name="Times-Roman" size="24"/>
-        <drawString x="35" y="760">Class Enrollment Invoice {term}</drawString>
+        <drawString x="35" y="760">{title}</drawString>
         <setFont name="Times-Roman" size="12"/>
         <drawString x="35" y="740">Generated on {date}</drawString>
+        <drawString x="35" y="30">{footer}</drawString>
       </pageGraphics>
       <frame id="second" x1="35" y1="45" width="525" height="675"/>
     </pageTemplate>
   </template>
+"""
 
+RML_BEGIN_TEMPLATE_LANDSCAPE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
+<document filename="master.pdf" invariant="1">
+
+  <template pagesize="letter" leftMargin="72">
+    <pageTemplate id="main" pagesize="letter landscape">
+      <pageGraphics>
+        <setFont name="Times-Roman" size="24"/>
+        <drawString x="45" y="576">{title}</drawString>
+        <setFont name="Times-Roman" size="12"/>
+        <drawString x="45" y="556">Generated on {date}</drawString>
+        <drawString x="35" y="30">{footer}</drawstring>
+      </pageGraphics>
+      <frame id="second" x1="45" y1="35" width="705" height="495"/>
+    </pageTemplate>
+  </template>
+"""
+
+RML_STYLESHEET = """\
   <stylesheet>
     <initialize>
       <alias id="style.normal" value="style.Normal"/>
     </initialize>
-    <paraStyle name="title" fontName="Times-Bold" fontSize="16" leading="12"
+    <paraStyle name="title" fontName="Times-Bold" fontSize="14" leading="12"
+               spaceBefore="10" spaceAfter="10"/>
+    <paraStyle name="header" fontName="Times-Roman" fontSize="14" leading="12"
                spaceBefore="12" spaceAfter="12"/>
-    <paraStyle name="bold" fontName="Times-Bold" fontSize="10" leading="12"/>
     <paraStyle name="normal" fontName="Times-Roman" fontSize="10" leading="12"/>
-    <paraStyle name="medium" fontName="Times-Bold" fontSize="12" leading="12"
-               spaceBefore="6"/>
-    <blockTableStyle id="students">
-      <blockFont name="Times-Bold" size="12" start="0,0" stop="-1,0"/>
+    <paraStyle name="bold" fontName="Times-Bold" fontSize="10" leading="12"/>
+    <paraStyle name="medium" fontName="Times-Roman" fontSize="10" leading="12"
+               spaceBefore="10"/>
+    <paraStyle name="small" fontName="Times-Roman" fontSize="8" leading="12"/>
+    <blockTableStyle id="studentsMaster">
+      <blockFont name="Times-Roman" size="8" start="0,0" stop="-1,0"/>
+      <blockFont name="Times-Roman" size="10" start="0,1" stop="-1,-1"/>
+      <blockFont name="Times-Bold" size="10" start="0,-1" stop="-1,-1"/>
+      <lineStyle kind="LINEBEFORE" colorName="black" start="1,0" stop="-1,-1"/>
+      <lineStyle kind="LINEBELOW" colorName="black" start="0,0" stop="-1,-2"/>
+      <blockAlignment start="1,0" stop="-1,-1" value="center"/>
+      <blockAlignment start="1,1" stop="-1,-1" value="right"/>
+      <blockTopPadding length="0"/>
+      <blockBottomPadding length="2"/>
+    </blockTableStyle>
+    <blockTableStyle id="studentsInvoice">
+      <blockFont name="Times-Bold" size="10" start="0,0" stop="-1,0"/>
       <blockFont name="Times-Roman" size="10" start="0,1" stop="-1,-1"/>
       <blockFont name="Times-Bold" size="10" start="0,-1" stop="-1,-1"/>
       <lineStyle kind="LINEBELOW" colorName="black" start="0,0" stop="-1,0"/>
       <lineStyle kind="LINEABOVE" colorName="black" start="0,-1" stop="-1,-1"/>
       <blockAlignment start="-1,0" stop="-1,-1" value="right"/>
+      <blockTopPadding length="0"/>
+      <blockBottomPadding length="2"/>
     </blockTableStyle>
     <blockTableStyle id="payables">
       <blockAlignment start="-1,0" stop="-1,-1" value="right"/>
+      <blockFont name="Times-Roman" size="10"/>
+      <blockTopPadding length="0"/>
+      <blockBottomPadding length="2"/>
+    </blockTableStyle>
+    <blockTableStyle id="basic">
+      <blockFont name="Times-Roman" size="10"/>
+      <blockTopPadding length="0"/>
+      <blockBottomPadding length="2"/>
     </blockTableStyle>
   </stylesheet>
 
@@ -53,12 +97,12 @@ RML_BEGIN_TEMPLATE = """<!DOCTYPE document SYSTEM "rml_1_0.dtd">
 
 RML_INVOICE_TEMPLATE = """\
     <para style="title">Parents</para>
-    <blockTable alignment="left">
+    <blockTable alignment="left" style="basic">
       {parents}
     </blockTable>
 
     <para style="title">Students</para>
-    <blockTable alignment="left" style="students">
+    <blockTable alignment="left" style="studentsInvoice">
       {students}
     </blockTable>
 
@@ -83,9 +127,84 @@ RML_HORIZONTAL_LINE = """\
 
 RML_PARAGRAPH_TEMPLATE = '<para style="{style}">{msg}</para>'
 
+RML_MASTER_FAMILY_TEMPLATE = """\
+    <keepTogether>
+    <para style="header"><b>{last_name}</b>, <font size="10">{parents}</font></para>
+    <blockTable alignment="left" style="studentsMaster">
+      {students}
+    </blockTable>
+    </keepTogether>
+"""
+
 logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
 logger.setLevel(logging.INFO)
+
+
+def generate_master_rml_for_family(family, class_map, rml_file):
+    # Set of all last names in family. Normally just one.
+    last_names = set()
+
+    # Create list of parent first names
+    parents = []
+    for parent in family['parents']:
+        last_names.add(parent[Column.LAST_NAME].strip())
+        parents.append(parent[Column.FIRST_NAME].strip())
+    parents_rml = ', '.join(sorted(parents))
+
+    # Create map of teacher name to column number
+    teacher_map = {}
+    columns = ['']
+    num_cols = 1
+    for student in family['students']:
+        for class_name in student[Column.CLASSES]:
+            teacher, fee = class_map[class_name]
+            if teacher not in teacher_map:
+                words = teacher.strip().split()
+                teacher_wrapped = words[0].strip() + '\n' + ' '.join(words[1:]).strip()
+                columns.append(teacher_wrapped)
+                teacher_map[teacher] = num_cols
+                num_cols += 1
+
+    # Create student class table rows
+    # students_rml = generate_table_row_rml(columns)
+    students_rml = generate_table_row_rml(columns)
+    totals = ['Total'] + [Decimal(0.00)] * (len(columns) - 1)
+    for student in family['students']:
+        row = [''] * len(columns)
+        row[0] = student[Column.FIRST_NAME].strip()
+        for class_name in student[Column.CLASSES]:
+            teacher, fee = class_map[class_name]
+            col = teacher_map[teacher.strip()]
+            if not row[col]:
+                row[col] = fee
+            else:
+                row[col] += fee
+            totals[col] += fee
+        students_rml += generate_table_row_rml(row)
+    students_rml += generate_table_row_rml(totals)
+
+    # Format the data collected above into RML
+    rml = RML_MASTER_FAMILY_TEMPLATE.format(last_name=', '.join(sorted(last_names)),
+                                            parents=parents_rml,
+                                            students=students_rml)
+    rml_file.write(rml)
+
+
+def generate_master(families, class_map, term, output_file):
+    rml = io.StringIO()
+    start_rml(rml,
+              template=RML_BEGIN_TEMPLATE_PORTRAIT,
+              title='Class Enrollment Master List',
+              term=term,
+              footer='Page <pageNumber/>')
+    for family in families.values():
+        if get_students(family):
+            generate_master_rml_for_family(family, class_map, rml)
+    finish_rml(rml)
+    # print('rml:', rml.getvalue())
+    rml.seek(0)
+    rml2pdf.go(rml, outputFileName=output_file)
 
 
 def create_invoice_object(family, class_map, note):
@@ -121,7 +240,10 @@ def create_invoice_object(family, class_map, note):
 
 def generate_one_invoice(family, class_map, note, term, output_file):
     rml = io.StringIO()
-    start_rml(rml, term)
+    start_rml(rml,
+              template=RML_BEGIN_TEMPLATE_PORTRAIT,
+              title='Class Enrollment Invoice',
+              term=term)
     invoice = create_invoice_object(family, class_map, note)
     generate_invoice_page_rml(invoice, rml)
     finish_rml(rml)
@@ -132,7 +254,10 @@ def generate_one_invoice(family, class_map, note, term, output_file):
 def generate_invoices(families, class_map, note, term, output_file, progress):
     try:
         rml = io.StringIO()
-        start_rml(rml, term)
+        start_rml(rml,
+                  template=RML_BEGIN_TEMPLATE_PORTRAIT,
+                  title='Class Enrollment Invoice',
+                  term=term)
         for n, family in enumerate(families.values()):
             if progress.WasCancelled():
                 break
@@ -152,13 +277,16 @@ def generate_invoices(families, class_map, note, term, output_file, progress):
         # wx.CallAfter(progress.Destroy)
 
 
-def start_rml(rml_file, term):
+def start_rml(rml_file, template, title, term, footer=''):
     if term:
-        term = f'({term})'
+        term = f' ({term})'
     else:
         term = ''
     now = datetime.datetime.now()
-    rml_file.write(RML_BEGIN_TEMPLATE.format(date=now.strftime('%a %b %d, %Y'), term=term))
+    rml_file.write(template.format(date=now.strftime('%a %b %d, %Y'),
+                                   footer=footer,
+                                   title=title + term))
+    rml_file.write(RML_STYLESHEET)
 
 
 def finish_rml(rml_file):

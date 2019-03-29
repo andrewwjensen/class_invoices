@@ -64,8 +64,8 @@ class ApplicationPanel(wx.Panel):
         self.enrollment_panel.clear_is_modified()
         self.fee_schedule_panel.clear_is_modified()
 
-    def get_sub_windows(self):
-        return self.enrollment_panel.get_sub_windows()
+    def close_sub_window(self):
+        return self.enrollment_panel.close_sub_window()
 
     def on_resize(self, event=None):
         """Window has been resized, so we need to adjust the sash based on self.proportion."""

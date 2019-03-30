@@ -7,7 +7,7 @@ import wx.lib.newevent
 
 import app_config
 from model.family import load_families
-from ui.EmailPanel import EmailPanel
+from ui.EmailSetupPanel import EmailSetupPanel
 from ui.FamilyListFrame import FamilyListFrame
 from ui.PdfPanel import PdfPanel
 
@@ -31,9 +31,9 @@ class EnrollmentPanel(wx.Panel):
         self.pdf_tab_panel = PdfPanel(parent=self.action_tabs,
                                       id=wx.ID_ANY,
                                       border=border)
-        self.email_tab_panel = EmailPanel(parent=self.action_tabs,
-                                          id=wx.ID_ANY,
-                                          border=border)
+        self.email_tab_panel = EmailSetupPanel(parent=self.action_tabs,
+                                               id=wx.ID_ANY,
+                                               border=border)
 
         # We are the family provider
         self.pdf_tab_panel.set_family_provider(self)

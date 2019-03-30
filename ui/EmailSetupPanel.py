@@ -13,7 +13,7 @@ logger = logging.getLogger(app_config.APP_NAME)
 logger.setLevel(logging.INFO)
 
 
-class EmailPanel(wx.Panel):
+class EmailSetupPanel(wx.Panel):
 
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)

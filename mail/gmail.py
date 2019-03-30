@@ -217,10 +217,10 @@ def send_message(service, user_id, message):
 
 
 def send_emails(subject, body, cc, families, class_map, note, term, progress):
+    msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
-    msg_prefix = progress.GetMessage()
     for n, family in enumerate(families.values()):
         if progress.WasCancelled():
             break
@@ -284,3 +284,25 @@ def create_drafts(subject, body, cc, families, class_map, note, term, progress):
                 draft = create_draft(gmail_service, 'me', msg)
                 draft_ids.append(draft['id'])
     return draft_ids
+
+
+def send_draft(service, user_id, draft_id):
+    draft = {
+        'id': draft_id
+    }
+    message = service.users().drafts().send(userId=user_id, body=draft).execute()
+    logger.debug("Draft with ID: " + draft_id + " sent successfully.")
+    logger.debug("Draft sent as Message with ID: " + str(dir(message)))
+
+
+def send_drafts(draft_ids, progress):
+    """Send drafts with given list of draft_ids. These IDs must be for drafts already created and now
+    sitting in the Drafts folder of the Gmail account."""
+    msg_prefix = progress.GetMessage()
+    gmail_service = get_gmail_service()
+    for n, draft_id in enumerate(draft_ids):
+        if progress.WasCancelled():
+            break
+        msg = f"{msg_prefix} {n}/{len(draft_ids)}..."
+        wx.CallAfter(progress.Update, n, newmsg=msg)
+        send_draft(gmail_service, 'me', draft_id)

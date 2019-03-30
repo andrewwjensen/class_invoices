@@ -46,6 +46,8 @@ class PdfPanel(wx.Panel):
         self.row_to_family_id = {}
 
         self.error_msg = None
+        self.draft_ids = []
+
         # Used to keep track if it changed, because the IsModified() method doesn't seem
         # work properly with multi-line TextCtrl
         self.term_text = None
@@ -204,9 +206,14 @@ class PdfPanel(wx.Panel):
             if self.confirm_send_email(sending_drafts, families):
                 if sending_drafts:
                     self.create_drafts(families, subject, body)
+                    self.send_drafts_dialog(self.draft_ids)
                 else:
                     self.send_email(families, subject, body)
         dlg.Destroy()
+
+    #######################
+    # Sending email methods
+    #######################
 
     def confirm_send_email(self, sending_drafts, families):
         num_families = len(families)
@@ -262,8 +269,13 @@ class PdfPanel(wx.Panel):
         except Exception as e:
             self.error_msg = "Error while sending email: " + str(e)
             logger.exception('could not send email')
-        wx.CallAfter(progress.EndModal, 0)
-        wx.CallAfter(progress.Destroy)
+        finally:
+            wx.CallAfter(progress.EndModal, 0)
+            wx.CallAfter(progress.Destroy)
+
+    #######################
+    # Creating drafts methods
+    #######################
 
     def create_drafts(self, families, subject, body):
         progress = wx.ProgressDialog(
@@ -277,32 +289,75 @@ class PdfPanel(wx.Panel):
         progress.ShowModal()
 
     def create_drafts_thread(self, families, subject, body, progress):
-        draft_ids = []
+        self.draft_ids = []
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
             term = self.text_ctrl_term.GetValue()
             class_map = self.fee_provider.generate_class_map()
-            draft_ids = gmail.create_drafts(subject,
-                                            body,
-                                            'bcc',
-                                            families,
-                                            class_map,
-                                            note,
-                                            term,
-                                            progress)
+            self.draft_ids = gmail.create_drafts(subject,
+                                                 body,
+                                                 'bcc',
+                                                 families,
+                                                 class_map,
+                                                 note,
+                                                 term,
+                                                 progress)
         except KeyError as e:
             self.error_msg = "Missing teacher or fee for class while creating drafts: " + e.args[0]
 
         except Exception as e:
             self.error_msg = "Error while creating drafts: " + str(e)
             logger.exception('could not create drafts')
-        wx.CallAfter(progress.EndModal, 0)
-        wx.CallAfter(progress.Destroy)
-        self.create_draft_send_dialog(draft_ids)
+        finally:
+            wx.CallAfter(progress.EndModal, 0)
+            wx.CallAfter(progress.Destroy)
 
-    def create_draft_send_dialog(self, draft_ids):
-        pass
+    #######################
+    # Sending drafts methods
+    #######################
+
+    def send_drafts(self, draft_ids):
+        progress = wx.ProgressDialog(
+            parent=self,
+            title='Send Draft Emails',
+            message="Please wait...\n\n"
+                    "Sending draft",
+            maximum=len(draft_ids),
+            style=wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT)
+        start_thread(self.send_drafts_thread, draft_ids, progress)
+        progress.ShowModal()
+
+    def send_drafts_thread(self, draft_ids, progress):
+        try:
+            gmail.send_drafts(draft_ids, progress)
+        except Exception as e:
+            self.error_msg = "Error while sending drafts: " + str(e)
+            logger.exception('could not send drafts')
+        finally:
+            wx.CallAfter(progress.EndModal, 0)
+            wx.CallAfter(progress.Destroy)
+
+    def send_drafts_dialog(self, draft_ids):
+        caption = 'Send Drafts?'
+        msg = 'Check your Gmail drafts folder to verify the messages are correct\n\n' \
+              'You may then send them manually through Gmail, or send them all at once here.'
+        dlg = wx.MessageDialog(parent=self,
+                               message=msg,
+                               caption=caption,
+                               style=wx.OK | wx.CANCEL)
+        plural = 's'
+        if len(draft_ids) == 1:
+            plural = ''
+        dlg.SetOKCancelLabels(ok='Send Manually Later',
+                              cancel=f'Send {len(draft_ids)} Draft{plural} Now')
+        response = dlg.ShowModal()
+        if response == wx.ID_CANCEL:
+            self.send_drafts(draft_ids)
+
+    #######################
+    # Other methods
+    #######################
 
     def check_error(self):
         if self.error_msg:

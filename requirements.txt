@@ -1,0 +1,5 @@
+google-api-python-client
+google-auth-oauthlib
+oauthlib
+wxpython
+z3c.rml

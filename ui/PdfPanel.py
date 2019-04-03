@@ -206,7 +206,8 @@ class PdfPanel(wx.Panel):
             if self.confirm_send_email(sending_drafts, families):
                 if sending_drafts:
                     self.create_drafts(families, subject, body)
-                    self.send_drafts_dialog(self.draft_ids)
+                    if not self.error_msg:
+                        self.send_drafts_dialog(self.draft_ids)
                 else:
                     self.send_email(families, subject, body)
         dlg.Destroy()

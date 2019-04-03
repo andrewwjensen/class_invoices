@@ -1,9 +1,9 @@
 # Application to read a CSV file of class registrations and generate family invoices.
 
-Written for Python3, uses WxPython and Qt, with installer created with PyInstaller.
+Written for Python 3 only (not compatible with Python 2), uses WxPython and Qt, with installer created with PyInstaller.
 
 Additional installation required on Ubuntu:
-* `sudo apt install` these packages:
+* Run `bash install-prerequisites.sh` to install these system packages:
   * freeglut3
   * freeglut3-dev
   * libgstreamer-plugins-base1.0-dev

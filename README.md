@@ -1,9 +1,14 @@
-# Application to read a CSV file of class registrations and generate family invoices.
+# Class Invoices
+ 
+This is an application to read a CSV file of class registrations and generate
+family invoices.
 
-Written for Python 3 only (not compatible with Python 2), uses WxPython and Qt, with installer created with PyInstaller.
+It is compatible with Python 3+ only (not compatible with Python 2.x). It
+uses WxPython, with installer created by PyInstaller.
 
-Additional installation required on Ubuntu:
-* Run `bash install-prerequisites.sh` to install these system packages:
+### Ubuntu Prerequisites
+
+Run `bash install-prerequisites.sh` to install these Ubuntu system packages:
   * freeglut3
   * freeglut3-dev
   * libgstreamer-plugins-base1.0-dev
@@ -17,9 +22,28 @@ Additional installation required on Ubuntu:
   * libwebkitgtk-3.0-dev
   * libwebkitgtk-dev
 
-* Additional Python modules required (install with `pip install -r requirements.txt`):
+### Environment Setup
+
+I recommend using a Python virtual environment to install the below dependencies
+ into, to avoid polluting your system. To do so:
+* `pip3 install virtualenv`
+* `virtualenv -p /usr/bin/python3 venv`
+* `source ./venv/bin/activate`
+* Install the Python packages as directed below
+* Run the application: `./ClassInvoices.py`
+* Deactivate the virtual environment: `deactivate`
+
+### Python Dependencies
+
+Additional Python modules required (install with `pip install -r requirements.txt`):
   * google-api-python-client
   * google-auth-oauthlib
   * oauthlib
-  * wxpython
+  * pymupdf
+  * wxPython
   * z3c.rml
+
+On Ubuntu, to install the binary of wxpython instead of building from sources:
+  ```bash
+  pip install -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-18.04 wxpython
+  ```

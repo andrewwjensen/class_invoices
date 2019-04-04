@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 import traceback
 
 import wx
@@ -23,12 +24,17 @@ class EnrollmentPanel(wx.Panel):
 
     def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
+
+        self.tempdir = tempfile.TemporaryDirectory()
+        logger.info(f'tempdir: {self.tempdir}')
+
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
         self.button_show_students = wx.Button(self, wx.ID_ANY, "Preview Enrollment List...")
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
-        self.pdf_tab_panel = PdfPanel(parent=self.action_tabs,
+        self.pdf_tab_panel = PdfPanel(self.tempdir.name,
+                                      parent=self.action_tabs,
                                       id=wx.ID_ANY,
                                       border=border)
         self.email_tab_panel = EmailSetupPanel(parent=self.action_tabs,

@@ -21,7 +21,7 @@ logger.setLevel(logging.INFO)
 
 class PdfPanel(wx.Panel):
 
-    def __init__(self, border=DEFAULT_BORDER, *args, **kwargs):
+    def __init__(self, tempdir, border=DEFAULT_BORDER, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.text_ctrl_term = wx.TextCtrl(self, wx.ID_ANY, "", size=(5000, 30))
@@ -32,15 +32,15 @@ class PdfPanel(wx.Panel):
         self.button_generate_invoices = wx.Button(self, wx.ID_ANY, "Preview Invoices...")
         self.button_email_invoices = wx.Button(self, wx.ID_ANY, "Email Invoices...")
 
+        # Create temp files here. The temp dir will be deleted when the application closes.
+        self.tempdir = tempdir
+
         self.family_provider = None
         self.fee_provider = None
         self.email_provider = None
 
         # Keep reference to all opened PDF viewers so we can close the windows on exit
         self.pdf_viewers = set()
-
-        # Keep reference to temp files open so they stay open and exist until exit
-        self.temporary_files = set()
 
         # Map row number in family table to family_id, which indexes families map
         self.row_to_family_id = {}
@@ -93,8 +93,6 @@ class PdfPanel(wx.Panel):
                 viewer.Destroy()
             except RuntimeError:
                 pass
-        for f in self.temporary_files:
-            f.close()
 
     def get_name(self):
         return 'PDF'
@@ -162,14 +160,13 @@ class PdfPanel(wx.Panel):
         # Need to write to temporary file instead of passing the buffer object directly, or
         # else the PdfViewer "Save As" button does not work. Also, keep them open so they don't
         # get deleted until we close the window.
-        tmp_file = tempfile.NamedTemporaryFile()
-        tmp_file.write(pdf_buffer.getvalue())
-        tmp_file.flush()
-        self.temporary_files.add(tmp_file)
+        (fd, path) = tempfile.mkstemp(dir=self.tempdir, suffix='.PDF')
+        with open(fd, 'wb') as tmp_file:
+            tmp_file.write(pdf_buffer.getvalue())
 
         pdf_viewer = PdfViewer(None, size=(800, 1000))
         self.pdf_viewers.add(pdf_viewer)
-        pdf_viewer.viewer.LoadFile(tmp_file.name)
+        pdf_viewer.viewer.LoadFile(path)
         pdf_viewer.Show()
         pdf_viewer.Bind(wx.EVT_CLOSE, self.on_close_sub_window)
 

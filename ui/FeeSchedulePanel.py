@@ -36,7 +36,7 @@ class FeeSchedulePanel(ListSorterPanel):
         sizer_fee_table = wx.BoxSizer(wx.VERTICAL)
         sizer_fee_buttons = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.SetMinSize((200, 100))
+        self.SetMinSize((400, 100))
         sizer_fee_table.Add(self.GetListCtrl(), 1, wx.EXPAND | wx.ALL, border)
 
         sizer_fee_buttons.Add(self.button_import, 0, wx.EXPAND | wx.ALL, border)

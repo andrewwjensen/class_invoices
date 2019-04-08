@@ -2,5 +2,5 @@ google-api-python-client
 google-auth-oauthlib
 oauthlib
 pymupdf
-wxPython
+wxpython
 z3c.rml

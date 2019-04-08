@@ -9,6 +9,8 @@ import ui.menu.EditMenu
 import ui.menu.FileMenu
 import ui.menu.HelpMenu
 
+SAVE_SUFFIX = '.classinvoice'
+
 SAVE_FORMAT_VERSION = 1.0
 
 logging.basicConfig()
@@ -50,7 +52,12 @@ class MainFrame(wx.Frame):
         self.modified = False
 
         if self.file_menu.file_history.GetCount() > 0:
-            self.load_file(self.file_menu.file_history.GetHistoryFile(0))
+            path = self.file_menu.file_history.GetHistoryFile(0)
+            try:
+                self.load_file(path)
+            except (OSError, FileNotFoundError) as e:
+                self.error_msg = f'Could not load file {path}: {e}'
+        self.check_error()
 
     def is_modified(self):
         return self.modified or self.application_panel.is_modified()
@@ -67,7 +74,7 @@ class MainFrame(wx.Frame):
                                     message="Choose a ClassInvoices file",
                                     defaultDir=dirname,
                                     defaultFile="",
-                                    wildcard="*.classinvoice",
+                                    wildcard=f'*{SAVE_SUFFIX}',
                                     style=wx.FD_OPEN)
         if file_dialog.ShowModal() == wx.ID_OK:
             path = file_dialog.GetPath()
@@ -85,12 +92,17 @@ class MainFrame(wx.Frame):
         self.load_file(path)
 
     def load_file(self, path):
-        with open(path, 'rb') as f:
-            data = pickle.load(f)
-        self.update_file_history(path)
-        self.load_data(data)
-        self.saved_filename = path
-        self.SetTitle(path)
+        path = self.file_menu.file_history.GetHistoryFile(0)
+        try:
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+            self.update_file_history(path)
+            self.load_data(data)
+            self.saved_filename = path
+            self.SetTitle(path)
+        except OSError as e:
+            self.error_msg = f'Could not load file: {e}'
+        self.check_error()
 
     def load_data(self, data):
         if data['version'] <= SAVE_FORMAT_VERSION:
@@ -111,6 +123,7 @@ class MainFrame(wx.Frame):
                 self.clear_is_modified()
                 self.saved_filename = path
                 self.SetTitle(path)
+                self.SetStatusText(f'Saved to {path}')
         except Exception as e:
             if path is None:
                 self.error_msg = f'Error saving file: {e}'
@@ -142,10 +155,12 @@ class MainFrame(wx.Frame):
                                         message=msg,
                                         defaultDir=dirname,
                                         defaultFile="",
-                                        wildcard="*.classinvoice",
+                                        wildcard=f'*{SAVE_SUFFIX}',
                                         style=wx.FD_SAVE)
             if file_dialog.ShowModal() == wx.ID_OK:
                 path = file_dialog.GetPath()
+                if not path.endswith(SAVE_SUFFIX):
+                    path += SAVE_SUFFIX
             file_dialog.Destroy()
             self.check_error()
         return path

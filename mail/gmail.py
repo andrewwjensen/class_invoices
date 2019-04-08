@@ -105,7 +105,7 @@ def check_credentials(parent, no_action_popup=True):
                 maximum=0,
             )
             wait_dialog.Pulse()
-            start_thread(authenticate_with_google, wait_dialog)
+            start_thread(authenticate_with_google, parent, wait_dialog)
             start_thread(check_for_cancel_thread, wait_dialog)
             wait_dialog.ShowModal()
             if parent.error_msg:

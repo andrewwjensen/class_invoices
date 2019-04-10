@@ -19,12 +19,10 @@ class ApplicationPanel(wx.Panel):
     def __init__(self, *args, **kwargs):
         wx.Panel.__init__(self, *args, **kwargs)
 
-        self.splitter = wx.SplitterWindow(self, wx.ID_ANY)
+        self.splitter = wx.SplitterWindow(self)
         self.enrollment_panel = EnrollmentPanel(parent=self.splitter,
-                                                id=wx.ID_ANY,
                                                 border=BORDER_WIDTH)
         self.fee_schedule_panel = FeeSchedulePanel(parent=self.splitter,
-                                                   id=wx.ID_ANY,
                                                    border=BORDER_WIDTH)
         self.enrollment_panel.set_fee_provider(self.fee_schedule_panel)
 
@@ -33,7 +31,8 @@ class ApplicationPanel(wx.Panel):
 
         self.Bind(wx.EVT_SIZE, self.on_resize)
         self.Bind(wx.EVT_SPLITTER_SASH_POS_CHANGED, self.on_sash_changed)
-        self.enrollment_panel.Bind(EnrollmentPanel.EVT_ENROLLMENT_DATA_CHANGED, self.on_enrollment_change)
+        self.enrollment_panel.Bind(EnrollmentPanel.EVT_ENROLLMENT_DATA_CHANGED,
+                                   self.on_enrollment_change)
 
         self.sash_proportion = 0.5
         self.error_msg = None
@@ -74,15 +73,26 @@ class ApplicationPanel(wx.Panel):
             event.Skip()
 
     def on_sash_changed(self, event=None):
-        width = max(self.splitter.GetMinimumPaneSize(), self.GetParent().GetClientSize().width)
+        width = max(self.splitter.GetMinimumPaneSize(),
+                    self.GetParent().GetClientSize().width)
         self.sash_proportion = self.splitter.GetSashPosition() / width
+        self.splitter.SetSashPosition(self.get_expected_sash_position())
 
     def get_expected_sash_position(self):
-        width = max(self.splitter.GetMinimumPaneSize(), self.GetParent().GetClientSize().width)
-        return int(round(width * self.sash_proportion))
+        width = max(self.splitter.GetMinimumPaneSize(),
+                    self.GetParent().GetClientSize().width)
+        position = int(round(width * self.sash_proportion))
+        min_position = self.enrollment_panel.GetMinWidth()
+        if position < min_position:
+            position = min_position
+        max_position = width - self.fee_schedule_panel.GetMinWidth()
+        if position > max_position:
+            position = max_position
+        return position
 
     def on_enrollment_change(self, event=None):
-        self.fee_schedule_panel.populate_fee_schedule(self.enrollment_panel.get_families())
+        self.fee_schedule_panel.populate_fee_schedule(
+            self.enrollment_panel.get_families())
         self.enable_buttons()
 
     def enable_buttons(self):

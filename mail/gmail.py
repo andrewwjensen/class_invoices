@@ -7,7 +7,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import google
+import google.auth.exceptions
 import oauthlib
 import wx
 from google.auth.transport.requests import Request
@@ -65,7 +65,7 @@ def authenticate(force_new=False, connect_to_google=True):
     # If there are no (valid) credentials available, let the user log in.
     if force_new or not credentials or not credentials.valid:
         if not force_new and credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
+            print(f'credentials refresh returned: {credentials.refresh(Request())}')
         elif connect_to_google:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             credentials = flow.run_local_server()
@@ -158,7 +158,8 @@ def get_gmail_service():
         return build('gmail', 'v1', credentials=authenticate(force_new=True))
     except oauthlib.oauth2.rfc6749.errors.OAuth2Error:
         pass
-    raise RuntimeError('Failed to authenticate to Google for sending mail. Please try again.')
+    raise RuntimeError(
+        'Failed to authenticate to Google for sending mail. Please try again.')
 
 
 def create_message_with_attachment(sender, recipients, cc, subject, body, data):
@@ -230,7 +231,9 @@ def send_emails(subject, body, cc, families, class_map, note, term, progress):
             pdf_buffer = MyBytesIO()
             generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
-            recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
+            recipients = [
+                f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>'
+                for p in parents]
             if recipients:
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
@@ -273,7 +276,9 @@ def create_drafts(subject, body, cc, families, class_map, note, term, progress):
             pdf_buffer = MyBytesIO()
             generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
-            recipients = [f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>' for p in parents]
+            recipients = [
+                f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>'
+                for p in parents]
             if recipients:
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,

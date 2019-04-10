@@ -27,7 +27,7 @@ COLUMN_DISPLAY_MAP = {
 }
 
 
-class FamilyPanel(ListSorterPanel):
+class FamilyListPanel(ListSorterPanel):
     def __init__(self, *args, **kwargs):
         ListSorterPanel.__init__(self, *args, **kwargs)
         self.SetMinSize((400, 100))

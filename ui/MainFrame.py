@@ -13,9 +13,7 @@ SAVE_SUFFIX = '.classinvoice'
 
 SAVE_FORMAT_VERSION = 1.0
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 class MainFrame(wx.Frame):
@@ -23,7 +21,6 @@ class MainFrame(wx.Frame):
 
     def __init__(self, *args, **kwargs):
         """Create the Frame."""
-        kwargs["style"] = kwargs.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwargs)
 
         # Add the Widget Panel
@@ -33,15 +30,15 @@ class MainFrame(wx.Frame):
 
         # Build the menu bar
         menu_bar = wx.MenuBar()
-        self.file_menu = ui.menu.FileMenu(self)
-        menu_bar.Append(self.file_menu, "&File")
-        # menu_bar.Append(ui.menu.EditMenu(self), "&Edit")
-        menu_bar.Append(ui.menu.HelpMenu(self), "&Help")
+        self.file_menu = ui.menu.FileMenu(parent=self)
+        menu_bar.Append(self.file_menu, '&File')
+        # menu_bar.Append(ui.menu.EditMenu(parent=self), '&Edit')
+        menu_bar.Append(ui.menu.HelpMenu(), '&Help')
         self.SetMenuBar(menu_bar)
 
         # Add a status bar at the bottom of the frame
         self.CreateStatusBar()
-        self.SetStatusText("Ready to open registration CSV file")
+        self.SetStatusText('Ready to open registration CSV file')
 
         self.Fit()
         self.SetMinSize((900, 500))
@@ -50,6 +47,7 @@ class MainFrame(wx.Frame):
 
         self.error_msg = None
         self.modified = False
+        self.clear_is_modified()
 
         if self.file_menu.file_history.GetCount() > 0:
             path = self.file_menu.file_history.GetHistoryFile(0)
@@ -70,19 +68,15 @@ class MainFrame(wx.Frame):
         if not self.is_safe_to_close():
             return
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self,
-                                    message="Choose a ClassInvoices file",
+        file_dialog = wx.FileDialog(parent=None,
+                                    message='Choose a ClassInvoices file',
                                     defaultDir=dirname,
-                                    defaultFile="",
+                                    defaultFile='',
                                     wildcard=f'*{SAVE_SUFFIX}',
                                     style=wx.FD_OPEN)
         if file_dialog.ShowModal() == wx.ID_OK:
             path = file_dialog.GetPath()
-            try:
-                self.load_file(path)
-            except Exception as e:
-                self.error_msg = f'Error opening {path}: {e}'
-                logger.exception('Open error')
+            self.load_file(path)
         file_dialog.Destroy()
         self.check_error()
 
@@ -92,7 +86,6 @@ class MainFrame(wx.Frame):
         self.load_file(path)
 
     def load_file(self, path):
-        path = self.file_menu.file_history.GetHistoryFile(0)
         try:
             with open(path, 'rb') as f:
                 data = pickle.load(f)
@@ -100,7 +93,7 @@ class MainFrame(wx.Frame):
             self.load_data(data)
             self.saved_filename = path
             self.SetTitle(path)
-        except OSError as e:
+        except Exception as e:
             self.error_msg = f'Could not load file: {e}'
         self.check_error()
 
@@ -154,7 +147,7 @@ class MainFrame(wx.Frame):
             file_dialog = wx.FileDialog(parent=self,
                                         message=msg,
                                         defaultDir=dirname,
-                                        defaultFile="",
+                                        defaultFile='',
                                         wildcard=f'*{SAVE_SUFFIX}',
                                         style=wx.FD_SAVE)
             if file_dialog.ShowModal() == wx.ID_OK:
@@ -199,10 +192,10 @@ class MainFrame(wx.Frame):
         if not self.is_modified():
             return True
         dlg = wx.MessageDialog(parent=self,
-                               message="Unsaved changes will be lost if you continue.",
-                               caption="Discard Changes?",
+                               message='Unsaved changes will be lost if you continue.',
+                               caption='Discard Changes?',
                                style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
-        dlg.SetOKLabel("Discard Changes")
+        dlg.SetOKLabel('Discard Changes')
         result = dlg.ShowModal()
         dlg.Destroy()
         return result == wx.ID_OK

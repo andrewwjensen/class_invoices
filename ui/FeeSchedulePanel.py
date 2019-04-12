@@ -14,9 +14,7 @@ from ui.ListSorterPanel import ListSorterPanel
 
 DEFAULT_BORDER = 5
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 class FeeSchedulePanel(ListSorterPanel):
@@ -24,8 +22,9 @@ class FeeSchedulePanel(ListSorterPanel):
         ListSorterPanel.__init__(self,
                                  editable_columns=[1, 2],
                                  *args, **kwargs)
-        self.button_import = wx.Button(self, wx.ID_ANY, "Import Fee Schedule...")
-        self.button_export = wx.Button(self, wx.ID_ANY, "Export Fee Schedule...")
+
+        self.button_import = wx.Button(self, wx.ID_ANY, 'Import Fee Schedule...')
+        self.button_export = wx.Button(self, wx.ID_ANY, 'Export Fee Schedule...')
 
         self.class_map = {}
         self.error_msg = None
@@ -57,11 +56,11 @@ class FeeSchedulePanel(ListSorterPanel):
 
     def on_import(self, event=None):
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self,
-                                    message="Choose a fee schedule CSV file",
+        file_dialog = wx.FileDialog(parent=None,
+                                    message='Choose a fee schedule CSV file',
                                     defaultDir=dirname,
-                                    defaultFile="",
-                                    wildcard="*.csv",
+                                    defaultFile='',
+                                    wildcard='*.csv',
                                     style=wx.FD_OPEN)
         if file_dialog.ShowModal() == wx.ID_OK:
             filename = file_dialog.GetFilename()
@@ -70,18 +69,18 @@ class FeeSchedulePanel(ListSorterPanel):
                 fee_schedule_path = os.path.join(dirname, filename)
                 self.load_fee_schedule(fee_schedule_path)
             except Exception as e:
-                self.error_msg = "Error while reading fee schedule: " + str(e)
+                self.error_msg = 'Error while reading fee schedule: ' + str(e)
                 logger.exception('Import error')
         file_dialog.Destroy()
         self.check_error()
 
     def on_export(self, event=None):
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self,
-                                    message="Export fee schedule to CSV",
+        file_dialog = wx.FileDialog(parent=None,
+                                    message='Export fee schedule to CSV',
                                     defaultDir=dirname,
-                                    defaultFile="",
-                                    wildcard="*.csv",
+                                    defaultFile='',
+                                    wildcard='*.csv',
                                     style=wx.FD_SAVE)
         if file_dialog.ShowModal() == wx.ID_OK:
             filename = file_dialog.GetFilename()
@@ -94,7 +93,7 @@ class FeeSchedulePanel(ListSorterPanel):
                                c in range(self.GetListCtrl().GetColumnCount())]
                         csv_writer.writerow(row)
             except Exception as e:
-                self.error_msg = "Error while exporting fee schedule: " + str(e)
+                self.error_msg = 'Error while exporting fee schedule: ' + str(e)
                 logger.exception('Export error')
         file_dialog.Destroy()
         self.check_error()

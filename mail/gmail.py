@@ -18,7 +18,7 @@ import app_config
 from model.columns import Column
 from model.family import get_students
 from pdf.generate import generate_one_invoice
-from util import start_thread, MyBytesIO
+from util import start_thread, MyBytesIO, start_progress
 
 PROJECT_ID = 'class-invoices'
 OAUTH_CLIENT_ID = '344465743544-80i03jq6qvshuva8gsd1o6558suotq4e.apps.googleusercontent.com'
@@ -39,9 +39,7 @@ CLIENT_CONFIG = {
     }
 }
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 def get_credentials_dir():
@@ -65,7 +63,7 @@ def authenticate(force_new=False, connect_to_google=True):
     # If there are no (valid) credentials available, let the user log in.
     if force_new or not credentials or not credentials.valid:
         if not force_new and credentials and credentials.expired and credentials.refresh_token:
-            print(f'credentials refresh returned: {credentials.refresh(Request())}')
+            credentials.refresh(Request())
         elif connect_to_google:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             credentials = flow.run_local_server()
@@ -88,7 +86,7 @@ def check_credentials(parent, no_action_popup=True):
               ' log in to Google and authorize this app to send email on your' \
               ' behalf. Do you wish to do this now? (You will be redirected to your browser)'
         caption = 'Google Authentication Required'
-        dlg = wx.MessageDialog(parent=parent,
+        dlg = wx.MessageDialog(parent=None,
                                message=msg,
                                caption=caption,
                                style=wx.OK | wx.CANCEL)
@@ -96,25 +94,22 @@ def check_credentials(parent, no_action_popup=True):
             dlg.Destroy()
             wx.Yield()  # Make sure dialog goes away before we open a new one
             wait_dialog = wx.ProgressDialog(
-                parent=parent,
                 title='Waiting for response from Google...',
                 message='Respond to prompts in your browser. This\n'
                         'dialog will close automatically after you\n'
                         'approve or deny the authentication request.',
-                style=wx.PD_APP_MODAL | wx.PD_CAN_ABORT,
-                maximum=0,
-            )
+                style=wx.PD_SMOOTH | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
             wait_dialog.Pulse()
-            start_thread(authenticate_with_google, parent, wait_dialog)
+            wait_dialog.done = False
             start_thread(check_for_cancel_thread, wait_dialog)
-            wait_dialog.ShowModal()
+            start_progress(wait_dialog, authenticate_with_google, parent)
             if parent.error_msg:
                 return False
             return True
         else:
             dlg.Destroy()
     elif no_action_popup:
-        dlg = wx.MessageDialog(parent=parent,
+        dlg = wx.MessageDialog(parent=None,
                                message='Email is already properly set up.',
                                caption='No Action Needed',
                                style=wx.OK)
@@ -123,26 +118,28 @@ def check_credentials(parent, no_action_popup=True):
     return credentials is not None
 
 
-def authenticate_with_google(parent, wait_dialog):
+def authenticate_with_google(wait_dialog, parent):
     parent.error_msg = 'Unable to authorize. Please try again.'
     if authenticate():
         parent.error_msg = None
-    # The following will throw RuntimeError exceptions if the dialog has already
-    # been destroyed by the progress thread (i.e. due to the user hitting the
-    # Cancel button). But this is pretty harmless. It just displays a couple
-    # tracebacks in the log.
-    wx.CallAfter(wait_dialog.EndModal, 0)
-    wx.CallAfter(wait_dialog.Destroy)
+    wait_dialog.Update(100)
+    if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS and not wait_dialog.done:
+        wx.CallAfter(wait_dialog.EndModal, 0)
+        wx.CallAfter(wait_dialog.Destroy)
+    wait_dialog.done = True
 
 
 def check_for_cancel_thread(wait_dialog):
     try:
-        while not wait_dialog.WasCancelled():
+        while not wait_dialog.WasCancelled() and not wait_dialog.done:
             time.sleep(0.1)  # prevent tight loop
-        wx.CallAfter(wait_dialog.EndModal, 0)
-        wx.CallAfter(wait_dialog.Destroy)
+        wait_dialog.Update(100)
+        if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS and not wait_dialog.done:
+            wx.CallAfter(wait_dialog.EndModal, 0)
+            wx.CallAfter(wait_dialog.Destroy)
+        wait_dialog.done = True
     except RuntimeError:
-        # This will happen when the dialog is destroyed
+        # This will happen when the dialog is destroyed by the Cancel button
         pass
 
 

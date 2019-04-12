@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
+import logging
 
 import wx
 
 import app_config
-import ui.MainFrame
+
+logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
 
 
 def main():
     app = wx.App()
     app_config.create_config()
+
+    # Need this import after setting up logging
+    import ui.MainFrame
     frame = ui.MainFrame(None,
                          title=app_config.APP_NAME,
-                         size=(1080, 700),
-                         )
+                         size=(1080, 700))
     frame.Show()
     app.MainLoop()
 

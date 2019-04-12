@@ -20,7 +20,7 @@ class ListSorterPanel(wx.Panel, listmix.ColumnSorterMixin):
         self.list_ctrl = EditableListCtrl(parent=self,
                                           id=wx.ID_ANY,
                                           editable_columns=editable_columns,
-                                          style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+                                          style=wx.LC_REPORT)
 
         #######################################################################
         # Set up column sorter mixin, which sorts table when column headers are clicked on

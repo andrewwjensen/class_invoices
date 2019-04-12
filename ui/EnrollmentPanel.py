@@ -14,9 +14,7 @@ from ui.PdfPanel import PdfPanel
 
 DEFAULT_BORDER = 5
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 class EnrollmentPanel(wx.Panel):
@@ -26,10 +24,10 @@ class EnrollmentPanel(wx.Panel):
         wx.Panel.__init__(self, *args, **kwargs)
 
         self.tempdir = tempfile.TemporaryDirectory()
-        logger.info(f'tempdir: {self.tempdir}')
+        logger.debug(f'tempdir: {self.tempdir}')
 
-        self.button_load_enrollment = wx.Button(self, wx.ID_ANY, "Load Enrollment List...")
-        self.button_show_students = wx.Button(self, wx.ID_ANY, "Preview Enrollment List...")
+        self.button_load_enrollment = wx.Button(self, wx.ID_ANY, 'Load Enrollment List...')
+        self.button_show_students = wx.Button(self, wx.ID_ANY, 'Preview Enrollment List...')
 
         # Notebook (tabbed pane with PDF and Email tabs)
         self.action_tabs = wx.Notebook(self, wx.ID_ANY)
@@ -68,17 +66,17 @@ class EnrollmentPanel(wx.Panel):
         sizer_enrollment_upper.Add(sizer_buttons)
 
         # Stats
-        label_families = wx.StaticText(self, wx.ID_ANY, "Families:")
+        label_families = wx.StaticText(self, wx.ID_ANY, 'Families:')
         sizer_stats.Add(label_families, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
-        self.label_num_families = wx.StaticText(self, wx.ID_ANY, "0")
+        self.label_num_families = wx.StaticText(self, wx.ID_ANY, '0')
         sizer_stats.Add(self.label_num_families, 0, wx.RIGHT | wx.TOP | wx.BOTTOM, border)
-        label_parents = wx.StaticText(self, wx.ID_ANY, "Parents:")
+        label_parents = wx.StaticText(self, wx.ID_ANY, 'Parents:')
         sizer_stats.Add(label_parents, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
-        self.label_num_parents = wx.StaticText(self, wx.ID_ANY, "0")
+        self.label_num_parents = wx.StaticText(self, wx.ID_ANY, '0')
         sizer_stats.Add(self.label_num_parents, 0, wx.RIGHT | wx.TOP | wx.BOTTOM, border)
-        label_students = wx.StaticText(self, wx.ID_ANY, "Students:")
+        label_students = wx.StaticText(self, wx.ID_ANY, 'Students:')
         sizer_stats.Add(label_students, 0, wx.LEFT | wx.TOP | wx.BOTTOM, border)
-        self.label_num_students = wx.StaticText(self, wx.ID_ANY, "0")
+        self.label_num_students = wx.StaticText(self, wx.ID_ANY, '0')
         sizer_stats.Add(self.label_num_students, 0, wx.RIGHT | wx.TOP | wx.BOTTOM, border)
         sizer_enrollment_upper.Add(sizer_stats, 1, wx.EXPAND, border)
         sizer_enrollment_panel.Add(sizer_enrollment_upper, 0, wx.EXPAND | wx.ALL, border)
@@ -112,11 +110,11 @@ class EnrollmentPanel(wx.Panel):
     def on_load(self, event=None):
         """Load a new class enrollment CSV file."""
         dirname = ''
-        file_dialog = wx.FileDialog(parent=self,
-                                    message="Choose an enrollment CSV file",
+        file_dialog = wx.FileDialog(parent=None,
+                                    message='Choose an enrollment CSV file',
                                     defaultDir=dirname,
-                                    defaultFile="",
-                                    wildcard="*.csv",
+                                    defaultFile='',
+                                    wildcard='*.csv',
                                     style=wx.FD_OPEN)
         if file_dialog.ShowModal() == wx.ID_OK:
             filename = file_dialog.GetFilename()
@@ -181,8 +179,10 @@ class EnrollmentPanel(wx.Panel):
     def check_error(self):
         if self.error_msg:
             caption = 'Error'
-            dlg = wx.MessageDialog(self, self.error_msg,
-                                   caption, wx.OK | wx.ICON_WARNING)
+            dlg = wx.MessageDialog(parent=None,
+                                   message=self.error_msg,
+                                   caption=caption,
+                                   style=wx.OK | wx.ICON_WARNING)
             self.error_msg = None
             dlg.ShowModal()
             dlg.Destroy()

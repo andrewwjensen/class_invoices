@@ -136,9 +136,7 @@ RML_MASTER_FAMILY_TEMPLATE = """\
     </keepTogether>
 """
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 def generate_master_rml_for_family(family, class_map, rml_file):
@@ -167,7 +165,6 @@ def generate_master_rml_for_family(family, class_map, rml_file):
                 num_cols += 1
 
     # Create student class table rows
-    # students_rml = generate_table_row_rml(columns)
     students_rml = generate_table_row_rml(columns)
     totals = ['Total'] + [Decimal(0.00)] * (len(columns) - 1)
     for student in family['students']:
@@ -202,7 +199,7 @@ def generate_master(families, class_map, term, output_file):
         if get_students(family):
             generate_master_rml_for_family(family, class_map, rml)
     finish_rml(rml)
-    # print('rml:', rml.getvalue())
+    logger.debug('rml: %s', rml.getvalue())
     rml.seek(0)
     rml2pdf.go(rml, outputFileName=output_file)
 
@@ -251,7 +248,7 @@ def generate_one_invoice(family, class_map, note, term, output_file):
     rml2pdf.go(rml, outputFileName=output_file)
 
 
-def generate_invoices(families, class_map, note, term, output_file, progress):
+def generate_invoices(progress, families, class_map, note, term, output_file):
     try:
         rml = io.StringIO()
         start_rml(rml,
@@ -268,13 +265,14 @@ def generate_invoices(families, class_map, note, term, output_file, progress):
                 invoice = create_invoice_object(family, class_map, note)
                 generate_invoice_page_rml(invoice, rml)
         finish_rml(rml)
-        # print('rml:', rml.getvalue())
+        logger.debug('rml: %s', rml.getvalue())
         rml.seek(0)
         rml2pdf.go(rml, outputFileName=output_file)
+        wx.CallAfter(progress.Update, progress.GetRange())
     finally:
-        wx.CallAfter(progress.EndModal, 0)
-        # This line causes a seg fault on Linux. TODO: investigate if destruction occurs elsewhere
-        # wx.CallAfter(progress.Destroy)
+        if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS:
+            wx.CallAfter(progress.EndModal, 0)
+            wx.CallAfter(progress.Destroy)
 
 
 def start_rml(rml_file, template, title, term, footer=''):

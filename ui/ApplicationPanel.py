@@ -8,9 +8,7 @@ from ui.FeeSchedulePanel import FeeSchedulePanel
 
 BORDER_WIDTH = 5
 
-logging.basicConfig()
 logger = logging.getLogger(app_config.APP_NAME)
-logger.setLevel(logging.INFO)
 
 
 class ApplicationPanel(wx.Panel):

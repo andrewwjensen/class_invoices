@@ -39,7 +39,7 @@ Additional Python modules required (install with `pip install -r requirements.tx
   * google-api-python-client
   * google-auth-oauthlib
   * oauthlib
-  * pymupdf
+  * pymupdf (optional, but recommended; faster and more full featured than the default PyPDF2)
   * wxPython
   * z3c.rml
 

@@ -165,7 +165,6 @@ def generate_master_rml_for_family(family, class_map, rml_file):
                 num_cols += 1
 
     # Create student class table rows
-    # students_rml = generate_table_row_rml(columns)
     students_rml = generate_table_row_rml(columns)
     totals = ['Total'] + [Decimal(0.00)] * (len(columns) - 1)
     for student in family['students']:
@@ -200,7 +199,7 @@ def generate_master(families, class_map, term, output_file):
         if get_students(family):
             generate_master_rml_for_family(family, class_map, rml)
     finish_rml(rml)
-    # print('rml:', rml.getvalue())
+    logger.debug('rml: %s', rml.getvalue())
     rml.seek(0)
     rml2pdf.go(rml, outputFileName=output_file)
 

@@ -101,8 +101,8 @@ def check_credentials(parent, no_action_popup=True):
                 style=wx.PD_SMOOTH | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
             wait_dialog.Pulse()
             wait_dialog.done = False
-            start_thread(check_for_cancel_thread, wait_dialog)
-            start_progress(wait_dialog, authenticate_with_google, parent)
+            start_thread(authenticate_with_google, wait_dialog, parent)
+            start_progress(wait_dialog, check_for_cancel_thread)
             if parent.error_msg:
                 return False
             return True

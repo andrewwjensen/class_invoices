@@ -54,4 +54,7 @@ class FileMenu(wx.Menu):
         self.parent.check_modified_load_file(path)
 
     def on_clear(self, event=None):
-        logger.info('on_clear')
+        while self.file_history.GetCount():
+            self.file_history.RemoveFileFromHistory(0)
+        self.file_history.Save(app_config.conf)
+        app_config.conf.Flush()

@@ -204,7 +204,7 @@ class PdfPanel(wx.Panel):
 
         pdf_viewer = PdfViewer(None, size=(800, 1000))
         self.pdf_viewers.add(pdf_viewer)
-        logger.debug(f'loading PDF {path}', extra={'filename': path})
+        logger.debug(f'loading PDF {path}', extra={'pdf_filename': path})
         pdf_viewer.viewer.LoadFile(path)
         pdf_viewer.Show()
         pdf_viewer.Raise()

@@ -5,7 +5,10 @@ import wx
 
 import app_config
 
+ATTRIBUTION = 'Icon made by Freepik from www.flaticon.com'
+
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
+logging.getLogger(app_config.APP_NAME).setLevel(logging.INFO)
 
 
 def main():

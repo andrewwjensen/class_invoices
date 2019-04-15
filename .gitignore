@@ -15,6 +15,7 @@ result.json
 
 ### .gradle ###
 /build/
+/dist/
 
 # don't ignore gradle wrapper files
 !/gradle/*

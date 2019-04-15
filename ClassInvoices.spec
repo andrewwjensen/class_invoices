@@ -1,18 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 
 one_file = False
-
 block_cipher = None
+
+for d in [
+    'venv/lib/python3.6/site-packages/reportlab/fonts',
+    'venv/Lib/site-packages/reportlab/fonts',
+]:
+    fonts_dir = d
+    break
+else:
+    fonts_dir = 'fonts'
 
 a = Analysis(['ClassInvoices.py'],
              binaries=[],
              datas=[
-                 ('venv/Lib/site-packages/reportlab/fonts/Vera.ttf', 'reportlab/fonts'),
-                 ('venv/Lib/site-packages/reportlab/fonts/VeraBI.ttf', 'reportlab/fonts'),
-                 ('venv/Lib/site-packages/reportlab/fonts/VeraBd.ttf', 'reportlab/fonts'),
-                 ('venv/Lib/site-packages/reportlab/fonts/VeraIt.ttf', 'reportlab/fonts'),
+                 (os.path.join(fonts_dir, 'Vera.ttf'), 'reportlab/fonts'),
+                 (os.path.join(fonts_dir, 'VeraBI.ttf'), 'reportlab/fonts'),
+                 (os.path.join(fonts_dir, 'VeraBd.ttf'), 'reportlab/fonts'),
+                 (os.path.join(fonts_dir, 'VeraIt.ttf'), 'reportlab/fonts'),
              ],
-             hiddenimports=[],
+             hiddenimports=['pythonjsonlogger.jsonlogger'],
              hookspath=['installer'],
              runtime_hooks=[],
              excludes=[],

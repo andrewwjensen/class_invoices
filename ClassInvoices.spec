@@ -38,12 +38,34 @@ exe = EXE(pyz,
           upx=True,
           runtime_tmpdir=None,
           console=False,
-          icon='installer/invoice.ico',
+          version='installer/win_version_file.py',
+          icon='icons/invoice.ico',
           )
 
 # For Mac OS X
 app = BUNDLE(exe,
              name='ClassInvoices.app',
-             icon='installer/invoice.ico',
-             bundle_identifier=None,
+             icon='icons/invoice.ico',
+             bundle_identifier='com.thejensenfam.classinvoices',
+             info_plist={
+                 'NSPrincipleClass': 'NSApplication',
+                 'NSAppleScriptEnabled': False,
+                 'CFBundleDocumentTypes': [
+                     {
+                         'CFBundleTypeName': 'ClassInvoices',
+                         'CFBundleTypeIconFiles': [
+                             'icons/invoice-16x16.png',
+                             'icons/invoice-24x24.png',
+                             'icons/invoice-32x32.png',
+                             'icons/invoice-64x64.png',
+                             'icons/invoice-128x128.png',
+                             'icons/invoice-256x256.png',
+                             'icons/invoice-512x512.png',
+                         ],
+                         'CFBundleTypeRole': 'Viewer',
+                         'LSItemContentTypes': ['com.thenjensenfam.classinvoices'],
+                         'LSHandlerRank': 'Owner'
+                     }
+                 ]
+             },
              )

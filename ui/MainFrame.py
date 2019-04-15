@@ -13,7 +13,7 @@ SAVE_SUFFIX = '.classinvoice'
 
 SAVE_FORMAT_VERSION = 1.0
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 class MainFrame(wx.Frame):

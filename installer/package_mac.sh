@@ -9,7 +9,7 @@ fi
 source venv/bin/activate
 
 pip install -r requirements.txt
-pip install -r installer/install-requirements.txt
+pip install https://github.com/pyinstaller/pyinstaller/tarball/develop
 
 rm -rf dist
 

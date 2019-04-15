@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import pickle
+import threading
 import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -18,7 +19,7 @@ import app_config
 from model.columns import Column
 from model.family import get_students
 from pdf.generate import generate_one_invoice
-from util import start_thread, MyBytesIO, start_progress
+from util import start_thread, MyBytesIO
 
 PROJECT_ID = 'class-invoices'
 OAUTH_CLIENT_ID = '344465743544-80i03jq6qvshuva8gsd1o6558suotq4e.apps.googleusercontent.com'
@@ -39,7 +40,7 @@ CLIENT_CONFIG = {
     }
 }
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 def get_credentials_dir():
@@ -78,7 +79,7 @@ def authenticate(force_new=False, connect_to_google=True):
     return credentials
 
 
-def check_credentials(parent, no_action_popup=True):
+def check_credentials(parent, show_popup_if_no_action_needed=True):
     """Check if Gmail API credentials have been set up. Prompt user to set them up if not."""
     credentials = authenticate(connect_to_google=False)
     if credentials is None:
@@ -90,25 +91,23 @@ def check_credentials(parent, no_action_popup=True):
                                message=msg,
                                caption=caption,
                                style=wx.OK | wx.CANCEL)
-        if dlg.ShowModal() == wx.ID_OK:
-            dlg.Destroy()
-            wx.Yield()  # Make sure dialog goes away before we open a new one
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        if result == wx.ID_OK:
+            wx.YieldIfNeeded()  # Make sure dialog goes away before we open a new one
             wait_dialog = wx.ProgressDialog(
                 title='Waiting for response from Google...',
                 message='Respond to prompts in your browser. This\n'
                         'dialog will close automatically after you\n'
-                        'approve or deny the authentication request.',
-                style=wx.PD_SMOOTH | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
+                        'approve or deny the authorization request.')
             wait_dialog.Pulse()
-            wait_dialog.done = False
-            start_thread(authenticate_with_google, wait_dialog, parent)
-            start_progress(wait_dialog, check_for_cancel_thread)
+            dialog_done = threading.Event()
+            start_thread(authenticate_with_google, parent, dialog_done)
+            check_for_done_loop(dialog_done)
             if parent.error_msg:
                 return False
             return True
-        else:
-            dlg.Destroy()
-    elif no_action_popup:
+    elif show_popup_if_no_action_needed:
         dlg = wx.MessageDialog(parent=None,
                                message='Email is already properly set up.',
                                caption='No Action Needed',
@@ -118,29 +117,21 @@ def check_credentials(parent, no_action_popup=True):
     return credentials is not None
 
 
-def authenticate_with_google(wait_dialog, parent):
-    parent.error_msg = 'Unable to authorize. Please try again.'
-    if authenticate():
-        parent.error_msg = None
-    wait_dialog.Update(100)
-    if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS and not wait_dialog.done:
-        wx.CallAfter(wait_dialog.EndModal, 0)
-        wx.CallAfter(wait_dialog.Destroy)
-    wait_dialog.done = True
-
-
-def check_for_cancel_thread(wait_dialog):
+def authenticate_with_google(parent, dialog_done):
+    """Start Google authentication process."""
     try:
-        while not wait_dialog.WasCancelled() and not wait_dialog.done:
-            time.sleep(0.1)  # prevent tight loop
-        wait_dialog.Update(100)
-        if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS and not wait_dialog.done:
-            wx.CallAfter(wait_dialog.EndModal, 0)
-            wx.CallAfter(wait_dialog.Destroy)
-        wait_dialog.done = True
-    except RuntimeError:
-        # This will happen when the dialog is destroyed by the Cancel button
-        pass
+        parent.error_msg = 'Unable to authorize. Please try again.'
+        if authenticate():
+            parent.error_msg = None
+    finally:
+        dialog_done.set()
+
+
+def check_for_done_loop(dialog_done):
+    """This is simply to make sure the application keeps responding and doesn't "freeze" as seen by the OS."""
+    while not dialog_done.is_set():
+        time.sleep(0.3)  # prevent tight loop
+        wx.YieldIfNeeded()
 
 
 def get_gmail_service():

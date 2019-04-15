@@ -6,7 +6,6 @@ from decimal import Decimal
 import wx
 import wx.lib.newevent
 
-import app_config
 from model.columns import Column
 from model.family import get_classes
 from model.fee_schedule import read_fee_schedule
@@ -14,7 +13,7 @@ from ui.ListSorterPanel import ListSorterPanel
 
 DEFAULT_BORDER = 5
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 class FeeSchedulePanel(ListSorterPanel):

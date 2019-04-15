@@ -1,10 +1,6 @@
-import logging
-
 import wx
 
 import app_config
-
-logger = logging.getLogger(app_config.APP_NAME)
 
 
 class FileMenu(wx.Menu):

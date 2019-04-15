@@ -3,6 +3,8 @@ import threading
 
 import wx
 
+PROGRESS_STYLE = wx.PD_SMOOTH | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE
+
 
 def start_thread(func, *args):
     thread = threading.Thread(target=func, args=args)
@@ -22,16 +24,3 @@ class MyBytesIO(io.BytesIO):
 
     def real_close(self):
         io.BytesIO.close(self)
-
-
-def start_progress(progress_dialog, thread_func, *thread_args):
-    """Start thread in background while managing progress dialog.
-    Needed because Windows behaves differently, so we handle that case."""
-    if wx.GetOsVersion()[0] & wx.OS_WINDOWS:
-        # On Windows, the progress dialog ShowModal() returns immediately, so don't run in
-        # separate thread.
-        thread_func(progress_dialog, *thread_args)
-    else:
-        start_thread(thread_func, progress_dialog, *thread_args)
-        # The following will only return once the thread destroys the dialog
-        progress_dialog.ShowModal()

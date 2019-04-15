@@ -1,5 +1,7 @@
 import wx
 
+from ClassInvoices import ATTRIBUTION
+
 
 class HelpMenu(wx.Menu):
     def __init__(self, *args, **kwargs):
@@ -11,7 +13,7 @@ class HelpMenu(wx.Menu):
     def on_about(self, event=None):
         # A message dialog box with an OK button. wx.OK is a standard ID in wxWidgets.
         dlg = wx.MessageDialog(parent=None,
-                               message='An application to generate PDF class invoices',
+                               message='An application to generate PDF class invoices\n\n' + ATTRIBUTION,
                                caption='About ClassInvoices',
                                style=wx.OK)
         dlg.ShowModal()  # Show it

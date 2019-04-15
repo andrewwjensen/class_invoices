@@ -3,12 +3,11 @@ import logging
 import wx
 import wx.lib.newevent
 
-import app_config
 from mail.gmail import check_credentials
 
 DEFAULT_BORDER = 5
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 class EmailSetupPanel(wx.Panel):

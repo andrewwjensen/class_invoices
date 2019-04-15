@@ -6,7 +6,6 @@ import traceback
 import wx
 import wx.lib.newevent
 
-import app_config
 from model.family import load_families
 from ui.EmailSetupPanel import EmailSetupPanel
 from ui.FamilyListFrame import FamilyListFrame
@@ -14,7 +13,7 @@ from ui.PdfPanel import PdfPanel
 
 DEFAULT_BORDER = 5
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 class EnrollmentPanel(wx.Panel):

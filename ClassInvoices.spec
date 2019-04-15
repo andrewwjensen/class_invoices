@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+one_file = False
+
 block_cipher = None
 
 a = Analysis(['ClassInvoices.py'],
@@ -24,23 +26,44 @@ pyz = PYZ(a.pure,
           cipher=block_cipher,
           )
 
-# For Windows
-exe = EXE(pyz,
-          a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
-          [],
-          name='ClassInvoices',
-          debug=False,
-          bootloader_ignore_signals=False,
-          strip=False,
-          upx=True,
-          runtime_tmpdir=None,
-          console=False,
-          version='installer/win_version_file.py',
-          icon='icons/invoice.ico',
-          )
+if one_file:
+    exe = EXE(pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='ClassInvoices',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              runtime_tmpdir=None,
+              console=False,
+              version='installer/win_version_file.py',
+              icon='icons/invoice.ico',
+              )
+else:
+    exe = EXE(pyz,
+              a.scripts,
+              [],
+              exclude_binaries=True,
+              name='ClassInvoices',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              console=False,
+              version='installer/win_version_file.py',
+              icon='icons/invoice.ico',
+              )
+    coll = COLLECT(exe,
+                   a.binaries,
+                   a.zipfiles,
+                   a.datas,
+                   strip=False,
+                   upx=True,
+                   name='ClassInvoices')
 
 # For Mac OS X
 app = BUNDLE(exe,

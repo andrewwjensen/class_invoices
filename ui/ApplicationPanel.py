@@ -2,13 +2,12 @@ import logging
 
 import wx
 
-import app_config
 from ui.EnrollmentPanel import EnrollmentPanel
 from ui.FeeSchedulePanel import FeeSchedulePanel
 
 BORDER_WIDTH = 5
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
 class ApplicationPanel(wx.Panel):

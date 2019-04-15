@@ -4,17 +4,40 @@ import tempfile
 import wx
 import wx.lib.newevent
 
-import app_config
 from mail import gmail
 from mail.gmail import check_credentials
 from model.columns import Column
 from pdf.generate import generate_invoices, generate_master
 from ui.PdfViewer import PdfViewer
-from util import MyBytesIO, start_progress
+from util import MyBytesIO, PROGRESS_STYLE
 
 DEFAULT_BORDER = 5
 
-logger = logging.getLogger(app_config.APP_NAME)
+logger = logging.getLogger(f'classinvoices.{__name__}')
+
+
+def confirm_send_email(sending_drafts, families):
+    num_families = len(families)
+    num_addrs = 0
+    for family in families.values():
+        for parent in family['parents']:
+            if parent[Column.EMAIL].strip():
+                num_addrs += 1
+    caption = 'Confirm'
+    if sending_drafts:
+        msg = f'{num_families} email drafts to be sent to {num_addrs} email addresses will be created' \
+            f' in the Drafts folder of your Gmail account. You may preview them before sending.'
+        ok_label = 'Create Drafts'
+    else:
+        msg = f'{num_families} emails will be sent to {num_addrs} email addresses.'
+        ok_label = 'Send Email Now'
+    dlg = wx.MessageDialog(parent=None,
+                           message=msg,
+                           caption=caption,
+                           style=wx.OK | wx.CANCEL | wx.CANCEL_DEFAULT)
+    dlg.SetOKLabel(ok_label)
+    response = dlg.ShowModal()
+    return response == wx.ID_OK
 
 
 class PdfPanel(wx.Panel):
@@ -138,6 +161,11 @@ class PdfPanel(wx.Panel):
             self.error_msg = f'error generating master PDF: {e}'
 
     def on_generate_invoices(self, event=None):
+        """
+        Called by wxPython when the generate invoices button is clicked.
+        Args:
+          event (wx.Event): wxPython event
+        """
         pdf_buffer = MyBytesIO()
         try:
             families = self.get_selected_families()
@@ -150,14 +178,21 @@ class PdfPanel(wx.Panel):
                                          'Please wait...\n\n'
                                          'Generating invoice for family:',
                                          maximum=len(families),
-                                         style=wx.PD_SMOOTH | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
-            start_progress(progress, generate_invoices, families, class_map, note, term, pdf_buffer)
+                                         style=PROGRESS_STYLE)
+            generate_invoices(progress, families, class_map, note, term, pdf_buffer)
+            progress.Update(progress.GetRange())  # Make sure progress dialog closes
             self.open_pdf_viewer(pdf_buffer)
         except RuntimeError as e:
             logger.exception('error generating invoices')
             self.error_msg = f'error generating invoices: {e}'
 
     def open_pdf_viewer(self, pdf_buffer):
+        """Display the given pdf_buffer in a new PDF viewer window.
+        Uses wxPython's lib.pdfviewer module.
+        Args:
+            pdf_buffer (io.BytesIO): A buffer containing the PDF data.
+        """
+
         # Need to write to temporary file instead of passing the buffer object directly, or
         # else the PdfViewer "Save As" button does not work. Also, keep them open so they don't
         # get deleted until we close the window.
@@ -169,9 +204,10 @@ class PdfPanel(wx.Panel):
 
         pdf_viewer = PdfViewer(None, size=(800, 1000))
         self.pdf_viewers.add(pdf_viewer)
-        logger.debug(f'loading PDF {path}')
+        logger.debug(f'loading PDF {path}', extra={'filename': path})
         pdf_viewer.viewer.LoadFile(path)
         pdf_viewer.Show()
+        pdf_viewer.Raise()
         pdf_viewer.Bind(wx.EVT_CLOSE, self.on_close_sub_window)
 
     ################################################################################################
@@ -179,6 +215,11 @@ class PdfPanel(wx.Panel):
     ################################################################################################
 
     def on_email(self, event=None):
+        """
+        Called by wxPython when the email button is clicked.
+        Args:
+          event (wx.Event): wxPython event
+        """
         subject = self.email_provider.text_ctrl_email_subject.GetValue()
         body = self.email_provider.text_ctrl_email_body.GetValue()
         try:
@@ -188,7 +229,7 @@ class PdfPanel(wx.Panel):
             elif not body.strip():
                 self.error_msg = 'Email message body may not be empty. Please enter' \
                                  ' one in the Email Setup tab before sending email.'
-            elif check_credentials(parent=self, no_action_popup=False):
+            elif check_credentials(parent=self, show_popup_if_no_action_needed=False):
                 self.choose_draft_or_send(subject, body)
         except Exception as e:
             self.error_msg = f'Error while sending email: {e}'
@@ -196,6 +237,11 @@ class PdfPanel(wx.Panel):
         self.check_error()
 
     def choose_draft_or_send(self, subject, body):
+        """
+        Prompt user to send email now, create drafts, or cancel.
+        :str subject: Subject of email
+        :str body: Message body of email
+        """
         msg = 'Do you wish to send the emails now, or save the emails to' \
               ' the drafts folder, so you can review them and send them later?'
         caption = 'Choose Email Action'
@@ -208,7 +254,7 @@ class PdfPanel(wx.Panel):
         if response != wx.ID_CANCEL:
             families = self.get_selected_families()
             sending_drafts = response == wx.ID_YES
-            if self.confirm_send_email(sending_drafts, families):
+            if confirm_send_email(sending_drafts, families):
                 if sending_drafts:
                     self.create_drafts(families, subject, body)
                     if not self.error_msg:
@@ -217,39 +263,13 @@ class PdfPanel(wx.Panel):
                     self.send_email(families, subject, body)
         dlg.Destroy()
 
-    def confirm_send_email(self, sending_drafts, families):
-        num_families = len(families)
-        num_addrs = 0
-        for family in families.values():
-            for parent in family['parents']:
-                if parent[Column.EMAIL].strip():
-                    num_addrs += 1
-        caption = 'Confirm'
-        if sending_drafts:
-            msg = f'{num_families} email drafts to be sent to {num_addrs} email addresses will be created' \
-                f' in the Drafts folder of your Gmail account. You may preview them before sending.'
-            ok_label = 'Create Drafts'
-        else:
-            msg = f'{num_families} emails will be sent to {num_addrs} email addresses.'
-            ok_label = 'Send Email Now'
-        dlg = wx.MessageDialog(parent=None,
-                               message=msg,
-                               caption=caption,
-                               style=wx.OK | wx.CANCEL | wx.CANCEL_DEFAULT)
-        dlg.SetOKLabel(ok_label)
-        response = dlg.ShowModal()
-        return response == wx.ID_OK
-
     def send_email(self, families, subject, body):
         progress = wx.ProgressDialog(
             title='Emailing Invoices',
             message='Please wait...\n\n'
                     'Emailing invoice for family: ',
             maximum=len(families),
-            style=wx.PD_SMOOTH | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
-        start_progress(progress, self.send_email_thread, families, subject, body)
-
-    def send_email_thread(self, progress, families, subject, body):
+            style=PROGRESS_STYLE)
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
@@ -263,16 +283,13 @@ class PdfPanel(wx.Panel):
                               note,
                               term,
                               progress)
+            progress.Update(progress.GetRange())  # Make sure progress dialog closes
         except KeyError as e:
             self.error_msg = f'Missing teacher or fee for class while sending email: {e.args[0]}'
 
         except Exception as e:
             self.error_msg = f'Error while sending email: {e}'
             logger.exception('could not send email')
-        finally:
-            if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS:
-                wx.CallAfter(progress.EndModal, 0)
-                wx.CallAfter(progress.Destroy)
 
     #################################################################################################
     # Creating drafts methods
@@ -284,10 +301,7 @@ class PdfPanel(wx.Panel):
             message='Please wait...\n\n'
                     'Creating draft email for family: ',
             maximum=len(families),
-            style=wx.PD_SMOOTH | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
-        start_progress(progress, self.create_drafts_thread, families, subject, body)
-
-    def create_drafts_thread(self, progress, families, subject, body):
+            style=PROGRESS_STYLE)
         self.draft_ids = []
         try:
             self.fee_provider.validate_fee_schedule(families)
@@ -302,16 +316,12 @@ class PdfPanel(wx.Panel):
                                                  note,
                                                  term,
                                                  progress)
+            progress.Update(progress.GetRange())  # Make sure progress dialog closes
         except KeyError as e:
             self.error_msg = 'Missing teacher or fee for class while creating drafts: ' + e.args[0]
-
         except Exception as e:
             self.error_msg = f'Error while creating drafts: {e}'
             logger.exception('could not create drafts')
-        finally:
-            if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS:
-                wx.CallAfter(progress.EndModal, 0)
-                wx.CallAfter(progress.Destroy)
 
     ################################################################################################
     # Sending drafts methods
@@ -323,19 +333,13 @@ class PdfPanel(wx.Panel):
             message='Please wait...\n\n'
                     'Sending draft',
             maximum=len(draft_ids),
-            style=wx.PD_SMOOTH | wx.PD_ELAPSED_TIME | wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE)
-        start_progress(progress, self.send_drafts_thread, draft_ids)
-
-    def send_drafts_thread(self, progress, draft_ids):
+            style=PROGRESS_STYLE)
         try:
             gmail.send_drafts(draft_ids, progress)
+            progress.Update(progress.GetRange())  # Make sure progress dialog closes
         except Exception as e:
             self.error_msg = f'Error while sending drafts: {e}'
             logger.exception('could not send drafts')
-        finally:
-            if 0 == wx.GetOsVersion()[0] & wx.OS_WINDOWS:
-                wx.CallAfter(progress.EndModal, 0)
-                wx.CallAfter(progress.Destroy)
 
     def send_drafts_dialog(self, draft_ids):
         caption = 'Send Drafts?'

@@ -1,10 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
-one_file = False
+one_file = True
 block_cipher = None
 
 for d in [
+    'venv/lib/python3.7/site-packages/reportlab/fonts',
     'venv/lib/python3.6/site-packages/reportlab/fonts',
     'venv/Lib/site-packages/reportlab/fonts',
 ]:

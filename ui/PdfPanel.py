@@ -83,14 +83,16 @@ class PdfPanel(wx.Panel):
         label_subject = wx.StaticText(self, label='Term:')
         sizer_term_row.Add(label_subject, proportion=0)
         sizer_term_row.Add(self.text_ctrl_term, proportion=1)
-        sizer_pdf_tab.Add(sizer_term_row, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT, border=border)
+        sizer_pdf_tab.Add(sizer_term_row, proportion=0, flag=wx.LEFT | wx.TOP | wx.RIGHT,
+                          border=border)
 
         label_note = wx.StaticText(self, label='Note to add to PDF invoices:')
         sizer_pdf_tab.Add(label_note, 0, wx.ALL, border)
         sizer_pdf_tab.Add(self.text_ctrl_pdf_note, 1, wx.EXPAND | wx.ALL, border)
         self.text_ctrl_pdf_note.SetMinSize((100, 100))
 
-        sizer_pdf_tab.Add(self.family_listctrl, proportion=2, flag=wx.ALL | wx.EXPAND, border=border)
+        sizer_pdf_tab.Add(self.family_listctrl, proportion=2, flag=wx.ALL | wx.EXPAND,
+                          border=border)
         self.family_listctrl.SetMinSize((100, 100))
 
         sizer_pdf_buttons = wx.BoxSizer(wx.HORIZONTAL)
@@ -202,7 +204,10 @@ class PdfPanel(wx.Panel):
             tmp_file.write(pdf_buffer.getvalue())
             tmp_file.flush()
 
-        pdf_viewer = PdfViewer(None, size=(800, 1000))
+        height = wx.DisplaySize()[1] - 70
+        width = int(height * 8 / 10)
+        logger.warning(f'size = {height} x {width}')
+        pdf_viewer = PdfViewer(None, size=(width, height))
         self.pdf_viewers.add(pdf_viewer)
         logger.debug(f'loading PDF {path}', extra={'pdf_filename': path})
         pdf_viewer.viewer.LoadFile(path)

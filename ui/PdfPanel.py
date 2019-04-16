@@ -382,8 +382,12 @@ class PdfPanel(wx.Panel):
     def load_data(self, data=None):
         if 'term' in data:
             self.text_ctrl_term.SetValue(data['term'])
+        else:
+            self.text_ctrl_term.SetValue('')
         if 'note' in data:
             self.text_ctrl_pdf_note.SetValue(data['note'])
+        else:
+            self.text_ctrl_pdf_note.SetValue('')
         self.populate_family_list()
 
     def populate_family_list(self):

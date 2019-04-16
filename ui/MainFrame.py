@@ -19,6 +19,8 @@ logger = logging.getLogger(f'classinvoices.{__name__}')
 class MainFrame(wx.Frame):
     """Main Frame holding the Panel."""
 
+    DEFAULT_SIZE = (1080, 700)
+
     def __init__(self, *args, **kwargs):
         """Create the Frame."""
         wx.Frame.__init__(self, *args, **kwargs)
@@ -63,6 +65,14 @@ class MainFrame(wx.Frame):
     def clear_is_modified(self):
         self.modified = False
         self.application_panel.clear_is_modified()
+
+    def on_new(self, event=None):
+        if not self.is_safe_to_close():
+            return
+        self.error_msg = None
+        self.SetSize(self.DEFAULT_SIZE)
+        self.application_panel.load_data({})
+        self.clear_is_modified()
 
     def on_open(self, event=None):
         if not self.is_safe_to_close():

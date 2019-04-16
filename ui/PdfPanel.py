@@ -408,8 +408,9 @@ class PdfPanel(wx.Panel):
             self.family_listctrl.InsertItem(r, '/'.join(sorted(last_names)))
             self.family_listctrl.SetItem(r, 1, str(num_parents))
             self.family_listctrl.SetItem(r, 2, str(num_students))
-        for c in range(3):
-            self.family_listctrl.SetColumnWidth(c, wx.LIST_AUTOSIZE_USEHEADER)
+        self.family_listctrl.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
+        self.family_listctrl.SetColumnWidth(1, 75)
+        self.family_listctrl.SetColumnWidth(2, 75)
 
     def is_modified(self):
         term_modified = self.text_ctrl_term.GetValue() != self.term_text

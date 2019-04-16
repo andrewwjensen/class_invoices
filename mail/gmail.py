@@ -214,7 +214,7 @@ def send_emails(subject, body, cc, families, class_map, note, term, progress):
         if progress.WasCancelled():
             break
         msg = f"{msg_prefix}{family['last_name']}"
-        wx.CallAfter(progress.Update, n, newmsg=msg)
+        progress.Update(n, newmsg=msg)
         if get_students(family):
             pdf_buffer = MyBytesIO()
             generate_one_invoice(family, class_map, note, term, pdf_buffer)
@@ -259,15 +259,17 @@ def create_drafts(subject, body, cc, families, class_map, note, term, progress):
         if progress.WasCancelled():
             break
         msg = f"{msg_prefix}{family['last_name']}"
-        wx.CallAfter(progress.Update, n, newmsg=msg)
+        progress.Update(n, newmsg=msg)
         if get_students(family):
+            logger.debug(f'processing family {n}: {family["last_name"]}')
             pdf_buffer = MyBytesIO()
             generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
             recipients = [
                 f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>'
-                for p in parents]
+                for p in parents if p[Column.EMAIL]]
             if recipients:
+                logger.debug(f'  sending to email addresses: {recipients}')
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
                                                      cc=cc,
@@ -297,5 +299,5 @@ def send_drafts(draft_ids, progress):
         if progress.WasCancelled():
             break
         msg = f"{msg_prefix} {n}/{len(draft_ids)}..."
-        wx.CallAfter(progress.Update, n, newmsg=msg)
+        progress.Update(n, newmsg=msg)
         send_draft(gmail_service, 'me', draft_id)

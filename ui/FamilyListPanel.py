@@ -26,6 +26,8 @@ COLUMN_DISPLAY_MAP = {
     Column.CLASSES: 'Classes',
 }
 
+MAX_COLUMN_WIDTH = 250
+
 
 class FamilyListPanel(ListSorterPanel):
     def __init__(self, *args, **kwargs):
@@ -50,5 +52,7 @@ class FamilyListPanel(ListSorterPanel):
         self.SetColumnCount(len(COLUMN_DISPLAY_MAP))
         for c in range(len(COLUMN_DISPLAY_MAP)):
             self.resize_column(c)
+            if self.list_ctrl.GetColumnWidth(c) > MAX_COLUMN_WIDTH:
+                self.list_ctrl.SetColumnWidth(c, MAX_COLUMN_WIDTH)
         self.SortListItems(2)
         self.SortListItems(1)

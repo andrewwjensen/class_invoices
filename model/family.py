@@ -1,7 +1,7 @@
 import csv
 
 from model.columns import Column
-from model.parse import parse_bool, parse_list, parse_date
+from model.parse import parse_bool, parse_list, parse_date, parse_phone
 
 REQUIRED_COLUMNS = [
     Column.FAMILY_ID,
@@ -11,6 +11,7 @@ REQUIRED_COLUMNS = [
 ]
 PARSE_TRANSFORMS = {
     Column.NEW_STUDENT: lambda value: parse_bool(value),
+    Column.PHONE: lambda value: parse_phone(value),
     Column.NONCONSECUTIVE: lambda value: parse_bool(value),
     Column.CLASSES: lambda value: parse_list(value),
     Column.REGISTERED: lambda value: parse_date(value),
@@ -106,7 +107,7 @@ def create_person(row, column_idx_to_name):
         col_name = column_idx_to_name[n]
         person[col_name] = column
     for col_name, value in person.items():
-        person[col_name] = transform(col_name, value, PARSE_TRANSFORMS)
+        person[col_name] = transform(col_name, value.strip(), PARSE_TRANSFORMS)
     validate_person(person)
     return person
 

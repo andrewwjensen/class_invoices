@@ -25,6 +25,15 @@ def parse_list(list_str):
         return []
 
 
+def parse_phone(in_str):
+    s = in_str.translate({ord(c): None for c in '()-.'})
+    if len(s) > 4:
+        s = s[:-4] + '-' + s[-4:]
+    if len(s) > 8:
+        s = s[:-8] + '-' + s[-8:]
+    return s
+
+
 def validate_currency(fee_str):
     if fee_str is not None:
         m = re.match(r'^ *\$? *(\d+(?:[.]\d{2})?) *$', fee_str)

@@ -197,7 +197,7 @@ def generate_master(families, class_map, term, output_file):
         if get_students(family):
             generate_master_rml_for_family(family, class_map, rml)
     finish_rml(rml)
-    logger.debug('rml: %s', rml.getvalue())
+    # logger.debug('rml: %s', rml.getvalue())
     rml.seek(0)
     rml2pdf.go(rml, outputFileName=output_file)
 
@@ -257,13 +257,15 @@ def generate_invoices(progress, families, class_map, note, term, output_file):
             break
         msg = "Please wait...\n\n" \
             f"Generating invoice for family: {family['last_name']}"
-        logger.debug(f'updating progress {n}: {msg}')
+        # logger.debug(f'updating progress {n}: {msg}')
         progress.Update(n, newmsg=msg)
-        if get_students(family):
+        students = get_students(family)
+        if students:
+            logger.debug(f'processing {len(students)} students in family {n}: {family["last_name"]}')
             invoice = create_invoice_object(family, class_map, note)
             generate_invoice_page_rml(invoice, rml)
     finish_rml(rml)
-    logger.debug('rml: %s', rml.getvalue())
+    # logger.debug('rml: %s', rml.getvalue())
     rml.seek(0)
     rml2pdf.go(rml, outputFileName=output_file)
 

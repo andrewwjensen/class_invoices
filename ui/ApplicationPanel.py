@@ -5,6 +5,8 @@ import wx
 from ui.EnrollmentPanel import EnrollmentPanel
 from ui.FeeSchedulePanel import FeeSchedulePanel
 
+DEFAULT_SASH_PROPORTION = 0.5
+
 BORDER_WIDTH = 5
 
 logger = logging.getLogger(f'classinvoices.{__name__}')
@@ -31,7 +33,7 @@ class ApplicationPanel(wx.Panel):
         self.enrollment_panel.Bind(EnrollmentPanel.EVT_ENROLLMENT_DATA_CHANGED,
                                    self.on_enrollment_change)
 
-        self.sash_proportion = 0.5
+        self.sash_proportion = DEFAULT_SASH_PROPORTION
         self.error_msg = None
 
     def __set_properties(self):
@@ -106,9 +108,15 @@ class ApplicationPanel(wx.Panel):
     def load_data(self, data):
         if 'sash_proportion' in data:
             self.sash_proportion = data['sash_proportion']
-            self.on_resize()
         else:
-            logger.debug('no sash proportion')
-        self.enrollment_panel.load_data(data['enrollment'])
-        self.fee_schedule_panel.load_data(data['fee_schedule'])
+            self.sash_proportion = DEFAULT_SASH_PROPORTION
+        self.on_resize()
+        if 'enrollment' in data:
+            self.enrollment_panel.load_data(data['enrollment'])
+        else:
+            self.enrollment_panel.load_data({})
+        if 'fee_schedule' in data:
+            self.fee_schedule_panel.load_data(data['fee_schedule'])
+        else:
+            self.fee_schedule_panel.load_data([])
         self.Refresh()

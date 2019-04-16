@@ -99,7 +99,15 @@ class EmailSetupPanel(wx.Panel):
         }
 
     def load_data(self, data):
-        self.text_ctrl_email_subject.SetValue(data['subject'])
-        self.text_ctrl_email_body.SetValue(data['body'])
+        if 'subject' in data:
+            self.text_ctrl_email_subject.SetValue(data['subject'])
+        else:
+            self.text_ctrl_email_subject.SetValue('')
+        if 'body' in data:
+            self.text_ctrl_email_body.SetValue(data['body'])
+        else:
+            self.text_ctrl_email_body.SetValue('')
         if 'cc' in data:
             self.combo_cc_bcc.SetSelection(data['cc'])
+        else:
+            self.combo_cc_bcc.SetSelection(0)

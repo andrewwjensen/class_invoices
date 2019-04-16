@@ -195,9 +195,20 @@ class EnrollmentPanel(wx.Panel):
         }
 
     def load_data(self, data):
-        self.families = data['families']
+        if 'families' in data:
+            self.families = data['families']
+        else:
+            self.families = {}
         self.refresh()
-        self.pdf_tab_panel.load_data(data['pdf_tab'])
-        self.email_tab_panel.load_data(data['email_tab'])
+        if 'pdf_tab' in data:
+            self.pdf_tab_panel.load_data(data['pdf_tab'])
+        else:
+            self.pdf_tab_panel.load_data({})
+        if 'email_tab' in data:
+            self.email_tab_panel.load_data(data['email_tab'])
+        else:
+            self.email_tab_panel.load_data({})
         if 'selected_tab' in data:
             self.action_tabs.SetSelection(data['selected_tab'])
+        else:
+            self.action_tabs.SetSelection(0)

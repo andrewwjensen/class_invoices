@@ -40,7 +40,7 @@ def main():
     import ui.MainFrame
     frame = ui.MainFrame(None,
                          title=app_config.APP_NAME,
-                         size=(1080, 700))
+                         size=ui.MainFrame.DEFAULT_SIZE)
     frame.Show()
     app.MainLoop()
 

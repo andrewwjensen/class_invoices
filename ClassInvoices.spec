@@ -9,8 +9,9 @@ for d in [
     'venv/lib/python3.6/site-packages/reportlab/fonts',
     'venv/Lib/site-packages/reportlab/fonts',
 ]:
-    fonts_dir = d
-    break
+    if os.path.isdir(d):
+        fonts_dir = d
+        break
 else:
     fonts_dir = 'fonts'
 
@@ -51,7 +52,7 @@ if one_file:
               runtime_tmpdir=None,
               console=False,
               version='installer/win_version_file.py',
-              icon='icons/invoice.ico',
+              icon='icons/app-icon-win.ico',
               )
 else:
     exe = EXE(pyz,
@@ -65,7 +66,7 @@ else:
               upx=True,
               console=False,
               version='installer/win_version_file.py',
-              icon='icons/invoice.ico',
+              icon='icons/app-icon-win.ico',
               )
     coll = COLLECT(exe,
                    a.binaries,
@@ -78,7 +79,7 @@ else:
 # For Mac OS X
 app = BUNDLE(exe,
              name='ClassInvoices.app',
-             icon='icons/invoice.ico',
+             icon='icons/app-icon-mac.icns',
              bundle_identifier='com.thejensenfam.classinvoices',
              info_plist={
                  'NSPrincipleClass': 'NSApplication',

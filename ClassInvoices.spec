@@ -1,9 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+
 import os
+import sys
+
+import wx
+
+# Hack to be able to import app_config:
+sys.path.insert(0, '.')
+
+from app_config import APP_NAME, COPYRIGHT, APP_VERSION, APP_ID, APP_DESCRIPTION
 
 one_file = True
 block_cipher = None
 
+fonts_dir = None
 for d in [
     'venv/lib/python3.7/site-packages/reportlab/fonts',
     'venv/lib/python3.6/site-packages/reportlab/fonts',
@@ -12,21 +22,21 @@ for d in [
     if os.path.isdir(d):
         fonts_dir = d
         break
-else:
-    fonts_dir = 'fonts'
+
+datas = [
+    (os.path.join(fonts_dir, 'Vera.ttf'), 'reportlab/fonts'),
+    (os.path.join(fonts_dir, 'VeraBI.ttf'), 'reportlab/fonts'),
+    (os.path.join(fonts_dir, 'VeraBd.ttf'), 'reportlab/fonts'),
+    (os.path.join(fonts_dir, 'VeraIt.ttf'), 'reportlab/fonts'),
+]
 
 a = Analysis(['ClassInvoices.py'],
              binaries=[],
-             datas=[
-                 (os.path.join(fonts_dir, 'Vera.ttf'), 'reportlab/fonts'),
-                 (os.path.join(fonts_dir, 'VeraBI.ttf'), 'reportlab/fonts'),
-                 (os.path.join(fonts_dir, 'VeraBd.ttf'), 'reportlab/fonts'),
-                 (os.path.join(fonts_dir, 'VeraIt.ttf'), 'reportlab/fonts'),
-             ],
+             datas=datas,
              hiddenimports=['pythonjsonlogger.jsonlogger'],
              hookspath=['installer'],
              runtime_hooks=[],
-             excludes=[],
+             excludes=['tkinter'],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher,
@@ -37,6 +47,21 @@ pyz = PYZ(a.pure,
           cipher=block_cipher,
           )
 
+kwargs = {
+    'name': 'ClassInvoices',
+    'debug': False,
+    'bootloader_ignore_signals': False,
+    'strip': False,
+    'upx': True,
+    'console': False,
+}
+
+if wx.GetOsVersion()[0] & wx.OS_WINDOWS:
+    kwargs['version'] = 'installer/win_version_file.py'
+    kwargs['icon'] = 'icons/app-icon-win.ico'
+elif wx.GetOsVersion()[0] & wx.OS_MAC:
+    kwargs['icon'] = 'icons/app-icon-mac.icns'
+
 if one_file:
     exe = EXE(pyz,
               a.scripts,
@@ -44,30 +69,61 @@ if one_file:
               a.zipfiles,
               a.datas,
               [],
-              name='ClassInvoices',
-              debug=False,
-              bootloader_ignore_signals=False,
-              strip=False,
-              upx=True,
               runtime_tmpdir=None,
-              console=False,
-              version='installer/win_version_file.py',
-              icon='icons/app-icon-win.ico',
-              )
+              **kwargs)
 else:
     exe = EXE(pyz,
               a.scripts,
               [],
               exclude_binaries=True,
-              name='ClassInvoices',
-              debug=False,
-              bootloader_ignore_signals=False,
-              strip=False,
-              upx=True,
-              console=False,
-              version='installer/win_version_file.py',
-              icon='icons/app-icon-win.ico',
-              )
+              **kwargs)
+
+if wx.GetOsVersion()[0] & wx.OS_MAC:
+    # For Mac OS X
+    app = BUNDLE(exe,
+                 TOC([('invoice-doc.icns', 'icons/invoice-doc.icns', 'DATA')]),
+                 name='ClassInvoices.app',
+                 icon='icons/app-icon-mac.icns',
+                 bundle_identifier=APP_ID,
+                 info_plist={
+                     'NSPrincipleClass': 'NSApplication',
+                     'NSAppleScriptEnabled': False,
+                     'UTExportedTypeDeclarations': [
+                         {
+                             'UTTypeConformsTo': [
+                                 'public.data',
+                             ],
+                             'UTTypeDescription': 'ClassInvoices Document',
+                             'UTTypeIdentifier': APP_ID + '.classinvoice',
+                             'UTTypeIconFile': 'invoice-doc.icns',
+                             'UTTypeTagSpecification': {
+                                 'public.filename-extension': [
+                                     'classinvoice',
+                                 ],
+                                 'public.mime-type': 'application/octet-stream',
+                             }
+                         }
+                     ],
+                     'CFBundleDocumentTypes': [
+                         {
+                             'CFBundleTypeIconFile': 'invoice-doc.icns',
+                             'CFBundleTypeName': 'ClassInvoices',
+                             'CFBundleTypeRole': 'Editor',
+                             'LSHandlerRank': 'Owner',
+                             'LSItemContentTypes': [APP_ID + '.classinvoice'],
+                         }
+                     ],
+                     'CFBundleName': APP_NAME,
+                     'CFBundleDisplayName': APP_NAME,
+                     'CFBundleGetInfoString': APP_DESCRIPTION,
+                     'CFBundleIdentifier': APP_ID,
+                     'CFBundleVersion': APP_VERSION,
+                     'CFBundleShortVersionString': APP_VERSION,
+                     'NSHumanReadableCopyright': COPYRIGHT,
+                 },
+                 )
+else:
+    # For Windows and Linux
     coll = COLLECT(exe,
                    a.binaries,
                    a.zipfiles,
@@ -75,31 +131,3 @@ else:
                    strip=False,
                    upx=True,
                    name='ClassInvoices')
-
-# For Mac OS X
-app = BUNDLE(exe,
-             name='ClassInvoices.app',
-             icon='icons/app-icon-mac.icns',
-             bundle_identifier='com.thejensenfam.classinvoices',
-             info_plist={
-                 'NSPrincipleClass': 'NSApplication',
-                 'NSAppleScriptEnabled': False,
-                 'CFBundleDocumentTypes': [
-                     {
-                         'CFBundleTypeName': 'ClassInvoices',
-                         'CFBundleTypeIconFiles': [
-                             'icons/invoice-16x16.png',
-                             'icons/invoice-24x24.png',
-                             'icons/invoice-32x32.png',
-                             'icons/invoice-64x64.png',
-                             'icons/invoice-128x128.png',
-                             'icons/invoice-256x256.png',
-                             'icons/invoice-512x512.png',
-                         ],
-                         'CFBundleTypeRole': 'Viewer',
-                         'LSItemContentTypes': ['com.thenjensenfam.classinvoices'],
-                         'LSHandlerRank': 'Owner'
-                     }
-                 ]
-             },
-             )

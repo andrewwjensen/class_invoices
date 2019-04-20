@@ -70,6 +70,8 @@ class MainFrame(wx.Frame):
         if not self.is_safe_to_close():
             return
         self.error_msg = None
+        self.saved_filename = None
+        self.SetTitle(app_config.APP_NAME)
         self.SetSize(self.DEFAULT_SIZE)
         self.application_panel.load_data({})
         self.clear_is_modified()

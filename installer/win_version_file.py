@@ -2,12 +2,15 @@
 #
 # For more details about fixed file info 'ffi' see:
 # http://msdn.microsoft.com/en-us/library/ms646997.aspx
+
+from app_config import APP_VERSION, COPYRIGHT, APP_NAME, APP_DESCRIPTION, APP_AUTHOR, APP_VERSION_TUPLE
+
 VSVersionInfo(
     ffi=FixedFileInfo(
         # filevers and prodvers should be always a tuple with four items: (1, 2, 3, 4)
         # Set not needed items to zero 0.
-        filevers=(1, 0, 0, 0),
-        prodvers=(1, 0, 0, 0),
+        filevers=APP_VERSION_TUPLE,
+        prodvers=APP_VERSION_TUPLE,
         # Contains a bitmask that specifies the valid bits 'flags'r
         mask=0x3f,
         # Contains a bitmask that specifies the Boolean attributes of the file.
@@ -28,16 +31,16 @@ VSVersionInfo(
         StringFileInfo(
             [
                 StringTable(
-                    u'040904B0',
-                    [StringStruct(u'CompanyName', u'Andrew W. Jensen'),
-                     StringStruct(u'FileDescription', u'Create Invoices for Classes from registration info.'),
-                     StringStruct(u'FileVersion', u'1.0.0'),
-                     StringStruct(u'InternalName', u'ClassInvoices.exe'),
-                     StringStruct(u'LegalCopyright', u'© Andrew W. Jensen. All rights reserved.'),
-                     StringStruct(u'OriginalFilename', u'ClassInvoices.exe'),
-                     StringStruct(u'ProductName', u'Class Invoices'),
-                     StringStruct(u'ProductVersion', u'1.0.0.0')])
+                    '040904B0',
+                    [StringStruct('CompanyName', APP_AUTHOR),
+                     StringStruct('FileDescription', APP_DESCRIPTION),
+                     StringStruct('FileVersion', APP_VERSION),
+                     StringStruct('InternalName', f'{APP_NAME}.exe'),
+                     StringStruct('LegalCopyright', COPYRIGHT),
+                     StringStruct('OriginalFilename', f'{APP_NAME}.exe'),
+                     StringStruct('ProductName', APP_NAME),
+                     StringStruct('ProductVersion', APP_VERSION)])
             ]),
-        VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+        VarFileInfo([VarStruct('Translation', [1033, 1200])])
     ]
 )

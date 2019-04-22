@@ -3,7 +3,7 @@
 pip3 install virtualenv
 
 if [[ ! -e venv ]]; then
-    virtualenv -p $(which python3) venv
+    virtualenv -p /usr/local/bin/python3 venv
 fi
 
 source venv/bin/activate

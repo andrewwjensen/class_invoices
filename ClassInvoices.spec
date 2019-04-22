@@ -4,6 +4,10 @@ import os
 import sys
 
 import wx
+from PyInstaller.building.api import EXE, PYZ
+from PyInstaller.building.build_main import Analysis
+from PyInstaller.building.datastruct import TOC
+from PyInstaller.building.osx import BUNDLE
 
 # Hack to be able to import app_config:
 sys.path.insert(0, '.')
@@ -56,13 +60,16 @@ kwargs = {
     'console': False,
 }
 
-if wx.GetOsVersion()[0] & wx.OS_WINDOWS:
+is_mac = wx.GetOsVersion()[0] & wx.OS_MAC
+
+is_windows = wx.GetOsVersion()[0] & wx.OS_WINDOWS
+if is_windows:
     kwargs['version'] = 'installer/win_version_file.py'
     kwargs['icon'] = 'icons/app-icon-win.ico'
-elif wx.GetOsVersion()[0] & wx.OS_MAC:
+elif is_mac:
     kwargs['icon'] = 'icons/app-icon-mac.icns'
 
-if one_file:
+if one_file or is_mac:
     exe = EXE(pyz,
               a.scripts,
               a.binaries,
@@ -78,8 +85,7 @@ else:
               exclude_binaries=True,
               **kwargs)
 
-if wx.GetOsVersion()[0] & wx.OS_MAC:
-    # For Mac OS X
+if is_mac:
     app = BUNDLE(exe,
                  TOC([('invoice-doc.icns', 'icons/invoice-doc.icns', 'DATA')]),
                  name='ClassInvoices.app',

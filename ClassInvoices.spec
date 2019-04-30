@@ -1,22 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
-import sys
 
 import wx
-from PyInstaller.building.api import EXE, PYZ
+# These imports are not needed, but they let IntelliJ know where they are so it can resolve them.
+from PyInstaller.building.api import EXE, PYZ, COLLECT
 from PyInstaller.building.build_main import Analysis
 from PyInstaller.building.datastruct import TOC
 from PyInstaller.building.osx import BUNDLE
 
-# Hack to be able to import app_config:
-sys.path.insert(0, '.')
-
-from app_config import APP_NAME, COPYRIGHT, APP_VERSION, APP_ID, APP_DESCRIPTION
-
 one_file = True
 block_cipher = None
 
+is_mac = wx.GetOsVersion()[0] & wx.OS_MAC
+is_windows = wx.GetOsVersion()[0] & wx.OS_WINDOWS
+
+# Find where rml fonts are so we can copy them to the runtime. The z3c.rml library
+# tries to load these and the import fails if they are not found.
 fonts_dir = None
 for d in [
     'venv/lib/python3.7/site-packages/reportlab/fonts',
@@ -60,11 +60,8 @@ kwargs = {
     'console': False,
 }
 
-is_mac = wx.GetOsVersion()[0] & wx.OS_MAC
-
-is_windows = wx.GetOsVersion()[0] & wx.OS_WINDOWS
 if is_windows:
-    kwargs['version'] = 'installer/win_version_file.py'
+    kwargs['version'] = 'build/win_version_file.py'
     kwargs['icon'] = 'icons/app-icon-win.ico'
 elif is_mac:
     kwargs['icon'] = 'icons/app-icon-mac.icns'
@@ -87,10 +84,12 @@ else:
 
 if is_mac:
     app = BUNDLE(exe,
+                 # Copy tho document icon to the Resources dir in the app
+                 # bundle; it is referenced in the Info.plist below.
                  TOC([('invoice-doc.icns', 'icons/invoice-doc.icns', 'DATA')]),
                  name='ClassInvoices.app',
                  icon='icons/app-icon-mac.icns',
-                 bundle_identifier=APP_ID,
+                 bundle_identifier=app_config.APP_ID,
                  info_plist={
                      'NSPrincipleClass': 'NSApplication',
                      'NSAppleScriptEnabled': False,
@@ -100,15 +99,15 @@ if is_mac:
                                  'public.data',
                              ],
                              'UTTypeDescription': 'ClassInvoices Document',
-                             'UTTypeIdentifier': APP_ID + '.classinvoice',
+                             'UTTypeIdentifier': app_config.APP_ID + '.classinvoice',
                              'UTTypeIconFile': 'invoice-doc.icns',
                              'UTTypeTagSpecification': {
                                  'public.filename-extension': [
                                      'classinvoice',
                                  ],
                                  'public.mime-type': 'application/octet-stream',
-                             }
-                         }
+                             },
+                         },
                      ],
                      'CFBundleDocumentTypes': [
                          {
@@ -116,16 +115,16 @@ if is_mac:
                              'CFBundleTypeName': 'ClassInvoices',
                              'CFBundleTypeRole': 'Editor',
                              'LSHandlerRank': 'Owner',
-                             'LSItemContentTypes': [APP_ID + '.classinvoice'],
-                         }
+                             'LSItemContentTypes': [app_config.APP_ID + '.classinvoice'],
+                         },
                      ],
-                     'CFBundleName': APP_NAME,
-                     'CFBundleDisplayName': APP_NAME,
-                     'CFBundleGetInfoString': APP_DESCRIPTION,
-                     'CFBundleIdentifier': APP_ID,
-                     'CFBundleVersion': APP_VERSION,
-                     'CFBundleShortVersionString': APP_VERSION,
-                     'NSHumanReadableCopyright': COPYRIGHT,
+                     'CFBundleName': app_config.APP_NAME,
+                     'CFBundleDisplayName': app_config.APP_NAME,
+                     'CFBundleGetInfoString': app_config.APP_DESCRIPTION,
+                     'CFBundleIdentifier': app_config.APP_ID,
+                     'CFBundleVersion': app_config.APP_VERSION,
+                     'CFBundleShortVersionString': app_config.APP_VERSION,
+                     'NSHumanReadableCopyright': app_config.APP_COPYRIGHT,
                  },
                  )
 else:

@@ -8,12 +8,15 @@ fi
 
 source venv/Scripts/activate
 
+rm -rf dist
+
+mkdir -p build
+
 pip install -r requirements.txt
 pip install -r installer/win-requirements.txt
 pip install https://github.com/pyinstaller/pyinstaller/tarball/develop
 
-rm -rf dist
-
+python app_config.py installer/win_version_file.py build/win_version_file.py
 pyinstaller ClassInvoices.spec
 
 deactivate

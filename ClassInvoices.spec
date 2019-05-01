@@ -83,6 +83,10 @@ else:
               **kwargs)
 
 if is_mac:
+    # Hack to be able to import app_config:
+    import sys
+    sys.path.insert(0, '.')
+    import app_config
     app = BUNDLE(exe,
                  # Copy tho document icon to the Resources dir in the app
                  # bundle; it is referenced in the Info.plist below.

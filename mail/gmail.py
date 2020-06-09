@@ -1,15 +1,14 @@
 import base64
 import logging
-import os
 import pickle
 import threading
-import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import google.auth.exceptions
 import oauthlib
+import time
 import wx
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -43,14 +42,6 @@ CLIENT_CONFIG = {
 logger = logging.getLogger(f'classinvoices.{__name__}')
 
 
-def get_credentials_dir():
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    return credential_dir
-
-
 def authenticate(force_new=False, connect_to_google=True):
     """Get credentials to authenticate to Google for using Gmail API."""
     credentials = None
@@ -67,7 +58,7 @@ def authenticate(force_new=False, connect_to_google=True):
             credentials.refresh(Request())
         elif connect_to_google:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
-            credentials = flow.run_local_server()
+            credentials = flow.run_local_server(port=0)
         else:
             # Caller did not want to retrieve new token now, just validate existing one.
             return None
@@ -81,7 +72,10 @@ def authenticate(force_new=False, connect_to_google=True):
 
 def check_credentials(parent, show_popup_if_no_action_needed=True):
     """Check if Gmail API credentials have been set up. Prompt user to set them up if not."""
-    credentials = authenticate(connect_to_google=False)
+    try:
+        credentials = authenticate(connect_to_google=False)
+    except google.auth.exceptions.RefreshError:
+        credentials = None
     if credentials is None:
         msg = 'In order to use the email feature, you must have a Gmail account. You need to' \
               ' log in to Google and authorize this app to send email on your' \
@@ -121,7 +115,11 @@ def authenticate_with_google(parent, dialog_done):
     """Start Google authentication process."""
     try:
         parent.error_msg = 'Unable to authorize. Please try again.'
-        if authenticate():
+        try:
+            result = authenticate()
+        except google.auth.exceptions.RefreshError:
+            result = authenticate(force_new=True)
+        if result:
             parent.error_msg = None
     finally:
         dialog_done.set()

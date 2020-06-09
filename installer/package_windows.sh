@@ -6,7 +6,11 @@ if [[ ! -e venv ]]; then
     virtualenv -p $(which python) venv
 fi
 
-source venv/Scripts/activate
+if [[ -x venv/bin/activate ]]; then
+    source venv/bin/activate
+else
+    source venv/Scripts/activate
+fi
 
 rm -rf dist
 

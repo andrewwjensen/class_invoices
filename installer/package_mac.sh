@@ -8,6 +8,7 @@ fi
 
 source venv/bin/activate
 
+pip install --uprade pip
 pip install -r requirements.txt
 pip install https://github.com/pyinstaller/pyinstaller/tarball/develop
 

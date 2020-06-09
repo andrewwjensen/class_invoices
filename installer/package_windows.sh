@@ -12,6 +12,7 @@ rm -rf dist
 
 mkdir -p build
 
+pip install --uprade pip
 pip install -r requirements.txt
 pip install -r installer/win-requirements.txt
 pip install https://github.com/pyinstaller/pyinstaller/tarball/develop

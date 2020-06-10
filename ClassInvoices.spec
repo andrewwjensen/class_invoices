@@ -11,6 +11,8 @@ from PyInstaller.building.osx import BUNDLE
 
 one_file = True
 block_cipher = None
+debug = True
+windowed = True
 
 is_mac = wx.GetOsVersion()[0] & wx.OS_MAC
 is_windows = wx.GetOsVersion()[0] & wx.OS_WINDOWS
@@ -53,11 +55,11 @@ pyz = PYZ(a.pure,
 
 kwargs = {
     'name': 'ClassInvoices',
-    'debug': False,
+    'debug': debug,
     'bootloader_ignore_signals': False,
     'strip': False,
     'upx': True,
-    'console': False,
+    'console': not windowed,
 }
 
 if is_windows:

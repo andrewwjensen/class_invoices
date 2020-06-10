@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-
-pip3 install virtualenv
+set -e
 
 if [[ ! -e venv ]]; then
-    virtualenv -p $(which python) venv
+    $(which python) -m venv venv
 fi
 
 if [[ -f venv/bin/activate ]]; then

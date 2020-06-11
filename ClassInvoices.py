@@ -12,9 +12,9 @@ ATTRIBUTION = 'Icon made by Freepik from www.flaticon.com'
 
 
 def setup_logging(
-    default_path='logging.yaml',
-    default_level=logging.INFO,
-    env_key='LOG_CFG'
+        default_path='logging.yaml',
+        default_level=logging.INFO,
+        env_key='LOG_CFG'
 ):
     """Setup logging configuration
     """
@@ -46,4 +46,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        logging.getLogger().exception('unhandled application error')

@@ -1,4 +1,5 @@
 import logging
+import os
 import pickle
 
 import wx
@@ -50,6 +51,13 @@ class MainFrame(wx.Frame):
         self.error_msg = None
         self.modified = False
         self.clear_is_modified()
+
+        dlg = wx.MessageDialog(parent=self,
+                               message=f'Current dir: {os.getcwd()}',
+                               caption='Confirm',
+                               style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
+        result = dlg.ShowModal()
+        dlg.Destroy()
 
         if self.file_menu.file_history.GetCount() > 0:
             path = self.file_menu.file_history.GetHistoryFile(0)

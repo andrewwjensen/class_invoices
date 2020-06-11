@@ -9,9 +9,9 @@ from PyInstaller.building.build_main import Analysis
 from PyInstaller.building.datastruct import TOC
 from PyInstaller.building.osx import BUNDLE
 
-one_file = False
+one_file = True
 block_cipher = None
-debug = True
+debug = False
 windowed = True
 
 is_mac = wx.GetOsVersion()[0] & wx.OS_MAC

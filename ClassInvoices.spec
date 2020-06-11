@@ -9,7 +9,7 @@ from PyInstaller.building.build_main import Analysis
 from PyInstaller.building.datastruct import TOC
 from PyInstaller.building.osx import BUNDLE
 
-one_file = True
+one_file = False
 block_cipher = None
 debug = True
 windowed = True
@@ -39,7 +39,9 @@ datas = [
 a = Analysis(['ClassInvoices.py'],
              binaries=[],
              datas=datas,
-             hiddenimports=['pythonjsonlogger.jsonlogger'],
+             hiddenimports=[
+                 'pythonjsonlogger.jsonlogger',
+             ],
              hookspath=['installer'],
              runtime_hooks=[],
              excludes=['tkinter'],

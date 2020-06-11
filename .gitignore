@@ -1,66 +1,10 @@
-# default .gitignore for eds 2.0 bdw
-
-result.json
 *.pyc
 
-# ignore all hidden, swap, log, lock and other temporary files
-.*
-
-# don't ignore/include myself and gitlab runner config file
-!.gitignore
-!.gitlab-ci.yml
-
-# tortoisegit Project-level settings
-/.tgitconfig
-
-### .gradle ###
 /build/
 /dist/
 
-# don't ignore gradle wrapper files
-!/gradle/*
-
-# Ignore Gradle GUI config
-gradle-app.setting
-
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
-!gradle-wrapper.jar
-
-# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-# gradle/wrapper/gradle-wrapper.properties
-
-### maven ###
-/target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-
-### java ###
-
-# Log file
 *.log
 
-# BlueJ files
-*.ctxt
-
-# Package Files #
-*.jar
-*.war
-*.ear
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-### eclipse ###
-.metadata
-bin/
 tmp/
 *.tmp
 *.bak
@@ -68,91 +12,20 @@ tmp/
 *~.nib
 local.properties
 
-# Locally stored "Eclipse launch configurations"
-*.launch
-
-# PyDev specific (Python IDE for Eclipse)
-*.pydevproject
-
 ### Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and Webstorm ###
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 
+.idea
 *.iml
 *.ipr
-/venv
-
-# CMake
-cmake-build-debug/
+/venv/
 
 ## File-based project format:
 *.iws
-
-## Plugin-specific files:
-
-# IntelliJ
-out/
-
-# mpeltonen/sbt-idea plugin
-.idea_modules/
-
-# JIRA plugin
-atlassian-ide-plugin.xml
-
-# Crashlytics plugin (for Android Studio and IntelliJ)
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
-
-### visual studio code ###
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 
 ### ios ###
 # ignore apple osx specific files
 *.DS_Store
 
-# Icon must end with two \r
-Icon
-
-# Directories potentially created on remote AFP share
-Network Trash Folder
-Temporary Items
-
-### windows ###
-# Windows thumbnail cache files
-Thumbs.db
-ehthumbs.db
-ehthumbs_vista.db
-
-# Dump file
-*.stackdump
-
-# Folder config file
-Desktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Windows Installer files
-*.cab
-*.msi
-*.msm
-*.msp
-
-# Windows shortcuts
-*.lnk
-
 ### linux ###
 *~
-
-# Avoid ignoring Maven wrapper
-!/.mvn
-
-# Docker
-!app-validation-src/.dockerignore
-
-# Veracode
-!VeracodeJavaAPI.jar

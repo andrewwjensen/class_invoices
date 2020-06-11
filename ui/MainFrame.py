@@ -36,7 +36,8 @@ class MainFrame(wx.Frame):
         self.file_menu = ui.menu.FileMenu(parent=self)
         menu_bar.Append(self.file_menu, '&File')
         # menu_bar.Append(ui.menu.EditMenu(parent=self), '&Edit')
-        menu_bar.Append(ui.menu.HelpMenu(), '&Help')
+        self.help_menu = ui.menu.HelpMenu()
+        menu_bar.Append(self.help_menu, '&Help')
         self.SetMenuBar(menu_bar)
 
         # Add a status bar at the bottom of the frame
@@ -52,12 +53,18 @@ class MainFrame(wx.Frame):
         self.modified = False
         self.clear_is_modified()
 
-        dlg = wx.MessageDialog(parent=self,
-                               message=f'Current dir: {os.getcwd()}',
-                               caption='Confirm',
-                               style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
-        result = dlg.ShowModal()
-        dlg.Destroy()
+        import sys
+        if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
+            msg = f'running in a PyInstaller bundle; bundle path = {sys._MEIPASS}'
+        else:
+            msg = 'running in a normal Python process'
+
+        # dlg = wx.MessageDialog(parent=self,
+        #                        message=f'Current dir: {os.getcwd()}; log file: {logger.handlers}; {msg}',
+        #                        caption='Confirm',
+        #                        style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
+        # result = dlg.ShowModal()
+        # dlg.Destroy()
 
         if self.file_menu.file_history.GetCount() > 0:
             path = self.file_menu.file_history.GetHistoryFile(0)
@@ -184,7 +191,10 @@ class MainFrame(wx.Frame):
         app_config.conf.Flush()
 
     def on_close(self, event=None):
-        if not self.IsActive():
+        # First check if the active window is the log window
+        if self.help_menu.log_window and self.help_menu.log_window.IsActive():
+            self.help_menu.on_close_log()
+        elif not self.IsActive():
             # One of the sub windows must be active. Find it and close it.
             self.application_panel.close_sub_window()
         else:
@@ -192,6 +202,8 @@ class MainFrame(wx.Frame):
             self.on_quit()
 
     def on_quit(self, event=None):
+        # Make sure any log window is closed, ore else it will prevent the app from exiting
+        self.help_menu.on_close_log()
         if self.is_safe_to_close():
             self.application_panel.close()
             self.Destroy()

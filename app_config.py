@@ -1,5 +1,6 @@
 # coding=utf-8
 import os
+import tempfile
 
 import wx
 
@@ -16,6 +17,8 @@ APP_COPYRIGHT = f'© 2019, {APP_AUTHOR}, All Rights Reserved'
 DEFAULT_DOC_DIR_KEY = 'default_dir'
 DEFAULT_CSV_DIR_KEY = 'csv_dir'
 GMAIL_TOKEN_KEY = 'gmail_token'
+
+LOG_PATH = os.path.join(tempfile.gettempdir(), 'ClassInvoices.log')
 
 DEFAULTS = {
     DEFAULT_DOC_DIR_KEY: os.path.expanduser('~/Documents/'),

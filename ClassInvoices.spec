@@ -39,9 +39,7 @@ datas = [
 a = Analysis(['ClassInvoices.py'],
              binaries=[],
              datas=datas,
-             hiddenimports=[
-                 'pythonjsonlogger.jsonlogger',
-             ],
+             hiddenimports=[],
              hookspath=['installer'],
              runtime_hooks=[],
              excludes=['tkinter'],

@@ -53,19 +53,6 @@ class MainFrame(wx.Frame):
         self.modified = False
         self.clear_is_modified()
 
-        import sys
-        if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
-            msg = f'running in a PyInstaller bundle; bundle path = {sys._MEIPASS}'
-        else:
-            msg = 'running in a normal Python process'
-
-        # dlg = wx.MessageDialog(parent=self,
-        #                        message=f'Current dir: {os.getcwd()}; log file: {logger.handlers}; {msg}',
-        #                        caption='Confirm',
-        #                        style=wx.OK | wx.CANCEL | wx.ICON_QUESTION | wx.CANCEL_DEFAULT)
-        # result = dlg.ShowModal()
-        # dlg.Destroy()
-
         if self.file_menu.file_history.GetCount() > 0:
             path = self.file_menu.file_history.GetHistoryFile(0)
             try:

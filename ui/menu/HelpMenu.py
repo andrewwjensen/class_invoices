@@ -58,7 +58,6 @@ class HelpMenu(wx.Menu):
 
         # --------------------
         self.AppendSeparator()
-        self.AppendSeparator()
 
         menu_log_path = self.Append(wx.ID_ANY, '&Show Log', 'Show Log')
         self.Bind(wx.EVT_MENU, self.on_show_log, menu_log_path)

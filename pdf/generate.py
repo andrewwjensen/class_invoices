@@ -155,6 +155,8 @@ def generate_master_rml_for_family(family, class_map, rml_file):
     for student in family['students']:
         for class_name in student[Column.CLASSES]:
             teacher, fee = class_map[class_name]
+            if not teacher:
+                continue
             if teacher not in teacher_map:
                 words = teacher.strip().split()
                 teacher_wrapped = words[0].strip() + '\n' + ' '.join(words[1:]).strip()
@@ -170,6 +172,8 @@ def generate_master_rml_for_family(family, class_map, rml_file):
         row[0] = student[Column.FIRST_NAME].strip()
         for class_name in student[Column.CLASSES]:
             teacher, fee = class_map[class_name]
+            if not teacher:
+                continue
             col = teacher_map[teacher.strip()]
             if not row[col]:
                 row[col] = fee
@@ -223,6 +227,8 @@ def create_invoice_object(family, class_map, note):
         invoice['students'][name] = []
         for class_name in student[Column.CLASSES]:
             teacher, fee = class_map[class_name]
+            # Ensure fee has two digits after the decimal:
+            fee += Decimal('0.00')
             invoice['students'][name].append([class_name, teacher, fee])
             invoice['total'] += fee
             try:
@@ -256,7 +262,7 @@ def generate_invoices(progress, families, class_map, note, term, output_file):
         if progress.WasCancelled():
             break
         msg = "Please wait...\n\n" \
-            f"Generating invoice for family: {family['last_name']}"
+              f"Generating invoice for family: {family['last_name']}"
         # logger.debug(f'updating progress {n}: {msg}')
         progress.Update(n, newmsg=msg)
         students = get_students(family)
@@ -308,7 +314,8 @@ def generate_invoice_page_rml(invoice, rml_file):
 
     payables_rml = ''
     for teacher, fee in sorted(invoice['payable'].items()):
-        payables_rml += generate_table_row_rml([teacher, '$' + str(fee)])
+        if fee:
+            payables_rml += generate_table_row_rml([teacher, '$' + str(fee)])
 
     rml = RML_INVOICE_TEMPLATE.format(parents=parents_rml,
                                       students=students_rml,

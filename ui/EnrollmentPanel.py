@@ -1,12 +1,11 @@
 import logging
 import os
 import tempfile
-import traceback
 
 import wx
 import wx.lib.newevent
 
-from model.family import load_families
+from model.family import load_families, export_families
 from ui.EmailSetupPanel import EmailSetupPanel
 from ui.FamilyListFrame import FamilyListFrame
 from ui.PdfPanel import PdfPanel
@@ -26,6 +25,7 @@ class EnrollmentPanel(wx.Panel):
         logger.debug(f'tempdir: {self.tempdir}')
 
         self.button_load_enrollment = wx.Button(self, wx.ID_ANY, 'Load Enrollment List...')
+        self.button_export_enrollment = wx.Button(self, wx.ID_ANY, 'Export Enrollment List...')
         self.button_show_students = wx.Button(self, wx.ID_ANY, 'Preview Enrollment List...')
 
         # Notebook (tabbed pane with PDF and Email tabs)
@@ -60,6 +60,8 @@ class EnrollmentPanel(wx.Panel):
         # Enrollment part, top of panel, above pdf/email notebook (tabbed panels)
         sizer_buttons.Add(self.button_load_enrollment, 0, wx.ALL, border)
         self.button_load_enrollment.Bind(wx.EVT_BUTTON, self.on_load)
+        sizer_buttons.Add(self.button_export_enrollment, 0, wx.ALL, border)
+        self.button_export_enrollment.Bind(wx.EVT_BUTTON, self.on_export)
         sizer_buttons.Add(self.button_show_students, 0, wx.ALL, border)
         self.button_show_students.Bind(wx.EVT_BUTTON, self.show_students)
         sizer_enrollment_upper.Add(sizer_buttons)
@@ -106,7 +108,7 @@ class EnrollmentPanel(wx.Panel):
     def get_families(self):
         return self.families
 
-    def on_load(self, event=None):
+    def on_load(self, _event=None):
         """Load a new class enrollment CSV file."""
         dirname = ''
         file_dialog = wx.FileDialog(parent=None,
@@ -125,13 +127,48 @@ class EnrollmentPanel(wx.Panel):
                 self.modified = True
             except Exception as e:
                 self.error_msg = f'Error while loading enrollment file: {e}'
-                traceback.print_exc()
+                logger.exception(self.error_msg)
         file_dialog.Destroy()
+        self.check_error()
+
+    def get_export_path(self):
+        path = None
+        msg = 'Export Enrollment CSV'
+        suffix = '.csv'
+        file_dialog = wx.FileDialog(parent=self,
+                                    message=msg,
+                                    defaultDir='',
+                                    defaultFile='export.csv',
+                                    wildcard=f'*{suffix}',
+                                    style=wx.FD_SAVE)
+        if file_dialog.ShowModal() == wx.ID_OK:
+            path = file_dialog.GetPath()
+            if not path.endswith(suffix):
+                path += suffix
+        file_dialog.Destroy()
+        return path
+
+    def on_export(self, _event=None):
+        """Export the class enrollment to a CSV file."""
+        try:
+            path = self.get_export_path()
+            if path:
+                self.export_enrollment_data(path)
+        except Exception as e:
+            self.error_msg = f'Error while loading enrollment file: {e}'
+            logger.exception(self.error_msg)
         self.check_error()
 
     def load_enrollment_data(self, path):
         self.families = load_families(path)
         self.refresh()
+
+    def export_enrollment_data(self, path):
+        try:
+            export_families(path, self.families)
+        except Exception as e:
+            self.error_msg = f'Error while loading enrollment file: {e}'
+            logger.exception(self.error_msg)
 
     def refresh(self):
         self.set_stats()
@@ -156,7 +193,7 @@ class EnrollmentPanel(wx.Panel):
         self.pdf_tab_panel.enable_buttons(enable)
         self.email_tab_panel.enable_buttons(enable)
 
-    def show_students(self, event=None):
+    def show_students(self, _event=None):
         family_frame = FamilyListFrame(parent=self)
         family_frame.set_families(self.families)
         self.sub_windows.add(family_frame)

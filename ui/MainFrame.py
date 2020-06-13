@@ -1,5 +1,4 @@
 import logging
-import os
 import pickle
 
 import wx
@@ -161,7 +160,7 @@ class MainFrame(wx.Frame):
             file_dialog = wx.FileDialog(parent=self,
                                         message=msg,
                                         defaultDir=dirname,
-                                        defaultFile='',
+                                        defaultFile=f'Class Invoices{SAVE_SUFFIX}',
                                         wildcard=f'*{SAVE_SUFFIX}',
                                         style=wx.FD_SAVE)
             if file_dialog.ShowModal() == wx.ID_OK:

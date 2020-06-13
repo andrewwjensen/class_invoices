@@ -4,5 +4,6 @@ oauthlib
 pymupdf
 python-json-logger
 PyYAML
+retry
 wxpython
 z3c.rml

@@ -2,17 +2,19 @@ import base64
 import logging
 import pickle
 import threading
+import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import google.auth.exceptions
 import oauthlib
-import time
 import wx
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from retry import retry
 
 import app_config
 from model.columns import Column
@@ -174,6 +176,7 @@ def create_message_with_attachment(sender, recipients, cc, subject, body, data):
 
     body = MIMEText(body)
     message.attach(body)
+    logger.debug(f'Created email message: {message}')
 
     # For our purposes, assume PDF data
     attachment = MIMEApplication(data, _subtype='pdf')
@@ -187,6 +190,7 @@ def create_message_with_attachment(sender, recipients, cc, subject, body, data):
     return {'raw': str(base64.urlsafe_b64encode(message.as_bytes()).decode())}
 
 
+@retry(HttpError, tries=10, delay=1, backoff=2, jitter=(1, 3), logger=logger)
 def send_message(service, user_id, message):
     """Send an email message.
 
@@ -199,19 +203,22 @@ def send_message(service, user_id, message):
     Returns:
       Sent Message.
     """
-    message = service.users().messages().send(userId=user_id, body=message).execute()
-    return message
+    return service.users().messages().send(userId=user_id, body=message).execute()
 
 
-def send_emails(subject, body, cc, families, class_map, note, term, progress):
+def send_emails(subject, body, cc, families, class_map, note, term, progress, errors=None):
+    if errors is None:
+        errors = []
     msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
     for n, family in enumerate(families.values()):
+        last_name = family['last_name']
+        logger.debug(f'processing family {n}: {last_name}')
         if progress.WasCancelled():
             break
-        msg = f"{msg_prefix}{family['last_name']}"
+        msg = f"{msg_prefix}{last_name}"
         progress.Update(n, newmsg=msg)
         if get_students(family):
             pdf_buffer = MyBytesIO()
@@ -219,8 +226,9 @@ def send_emails(subject, body, cc, families, class_map, note, term, progress):
             parents = family['parents']
             recipients = [
                 f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>'
-                for p in parents]
+                for p in parents if p[Column.EMAIL]]
             if recipients:
+                logger.debug(f'  sending to email addresses: {recipients}')
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
                                                      cc=cc,
@@ -228,6 +236,8 @@ def send_emails(subject, body, cc, families, class_map, note, term, progress):
                                                      body=body,
                                                      data=pdf_buffer.getvalue())
                 send_message(gmail_service, 'me', msg)
+            else:
+                errors.append(f'Family {last_name} has no parents with email')
 
 
 def create_draft(service, user_id, message_body):
@@ -247,19 +257,22 @@ def create_draft(service, user_id, message_body):
     return draft
 
 
-def create_drafts(subject, body, cc, families, class_map, note, term, progress):
+def create_drafts(subject, body, cc, families, class_map, note, term, progress, errors=None):
+    if errors is None:
+        errors = []
     msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
     profile = gmail_service.users().getProfile(userId='me').execute()
     sender = profile['emailAddress']
-    draft_ids = []
+    drafts = []
     for n, family in enumerate(families.values()):
         if progress.WasCancelled():
             break
-        msg = f"{msg_prefix}{family['last_name']}"
+        last_name = family['last_name']
+        msg = f"{msg_prefix}{last_name}"
         progress.Update(n, newmsg=msg)
         if get_students(family):
-            logger.debug(f'processing family {n}: {family["last_name"]}')
+            logger.info(f'processing family {n}: {last_name}')
             pdf_buffer = MyBytesIO()
             generate_one_invoice(family, class_map, note, term, pdf_buffer)
             parents = family['parents']
@@ -267,7 +280,7 @@ def create_drafts(subject, body, cc, families, class_map, note, term, progress):
                 f'"{p[Column.FIRST_NAME]} {p[Column.LAST_NAME]}" <{p[Column.EMAIL]}>'
                 for p in parents if p[Column.EMAIL]]
             if recipients:
-                logger.debug(f'  sending to email addresses: {recipients}')
+                logger.info(f'  sending to email addresses: {recipients}')
                 msg = create_message_with_attachment(sender=sender,
                                                      recipients=recipients,
                                                      cc=cc,
@@ -275,27 +288,33 @@ def create_drafts(subject, body, cc, families, class_map, note, term, progress):
                                                      body=body,
                                                      data=pdf_buffer.getvalue())
                 draft = create_draft(gmail_service, 'me', msg)
-                draft_ids.append(draft['id'])
-    return draft_ids
+                drafts.append({'family': family, 'draft_id': draft['id']})
+            else:
+                errors.append(f'Family {last_name} has no parents with email')
+    return drafts
 
 
+@retry(HttpError, tries=10, delay=1, backoff=2, jitter=(1, 3), logger=logger)
 def send_draft(service, user_id, draft_id):
     draft = {
         'id': draft_id
     }
     message = service.users().drafts().send(userId=user_id, body=draft).execute()
-    logger.debug("Draft with ID: " + draft_id + " sent successfully.")
-    logger.debug("Draft sent as Message with ID: " + str(dir(message)))
+    logger.debug(f'Draft with ID: {draft_id} sent successfully.')
+    logger.debug(f'Draft sent as Message with ID: {message["id"]}')
 
 
-def send_drafts(draft_ids, progress):
-    """Send drafts with given list of draft_ids. These IDs must be for drafts already created and now
-    sitting in the Drafts folder of the Gmail account."""
+def send_drafts(drafts, progress):
+    """Send drafts. The 'draft_id' key of each draft is an ID which must be for drafts
+    already created and now sitting in the Drafts folder of the Gmail account."""
     msg_prefix = progress.GetMessage()
     gmail_service = get_gmail_service()
-    for n, draft_id in enumerate(draft_ids):
+    for n, draft in enumerate(drafts):
+        draft_id = draft['draft_id']
         if progress.WasCancelled():
             break
-        msg = f"{msg_prefix} {n}/{len(draft_ids)}..."
+        msg = f"{msg_prefix} {n}/{len(drafts)}..."
         progress.Update(n, newmsg=msg)
+        family_name = draft['family']['last_name']
+        logger.info(f'Sending draft ID {draft_id} for family {family_name}')
         send_draft(gmail_service, 'me', draft_id)

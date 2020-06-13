@@ -63,6 +63,7 @@ class StreamToLogger(object):
     def flush(self):
         pass
 
+
 def redirect_stdout_stderr():
     """Redirect stdout and stderr to the log."""
     stdout_logger = logging.getLogger('STDOUT')

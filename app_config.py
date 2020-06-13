@@ -8,9 +8,9 @@ PUBLISHER_NAME = 'AndyJensen'
 APP_AUTHOR = 'Andrew W. Jensen'
 APP_NAME = 'ClassInvoices'
 APP_DESCRIPTION = 'Create invoices for classes from registration info.'
-APP_VERSION = '1.1.2'
+APP_VERSION = '1.2.0'
 # Must be a 4-tuple for Windows packaging:
-APP_VERSION_TUPLE = '(1, 1, 2, 0)'
+APP_VERSION_TUPLE = '(1, 2, 0, 0)'
 APP_ID = 'com.thejensenfam.classinvoices'
 APP_COPYRIGHT = f'© 2020, {APP_AUTHOR}, All Rights Reserved'
 

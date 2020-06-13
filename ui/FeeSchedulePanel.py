@@ -87,6 +87,7 @@ class FeeSchedulePanel(ListSorterPanel):
             try:
                 with open(os.path.join(dirname, filename), 'w') as f:
                     csv_writer = csv.writer(f)
+                    csv_writer.writerow(['Class', 'Teacher', 'Fee'])
                     for r in range(self.GetListCtrl().GetItemCount()):
                         row = [self.GetListCtrl().GetItem(r, c).GetText() for
                                c in range(self.GetListCtrl().GetColumnCount())]
@@ -99,8 +100,11 @@ class FeeSchedulePanel(ListSorterPanel):
 
     def load_fee_schedule(self, path):
         logger.debug('loading fee schedule')
-        fee_schedule = read_fee_schedule(path)
+        errors = []
+        fee_schedule = read_fee_schedule(path, errors=errors)
         self.show_fee_schedule(fee_schedule)
+        self.error_msg = '\n'.join(errors)
+        self.check_error()
 
     def show_fee_schedule(self, fee_schedule):
         # First, build a map of class name to row number on the displayed fee schedule
@@ -111,12 +115,14 @@ class FeeSchedulePanel(ListSorterPanel):
 
         # Now open the fee schedule CSV and process its rows
         for fee_entry in fee_schedule:
+            class_name = fee_entry[0]
             try:
-                display_row_num = class_to_row[fee_entry[0]]
+                display_row_num = class_to_row[class_name]
                 self.set_item(display_row_num, 1, fee_entry[1])
                 self.set_item(display_row_num, 2, fee_entry[2])
             except KeyError:
                 # Ignore classes that are not needed for any registered student
+                logger.debug(f'Ignoring class "{class_name}" as no student has it')
                 pass
         self.resize_columns()
 
@@ -155,8 +161,7 @@ class FeeSchedulePanel(ListSorterPanel):
             class_name = self.GetListCtrl().GetItem(r, 0).GetText().strip()
             teacher = self.GetListCtrl().GetItem(r, 1).GetText().strip()
             fee = self.GetListCtrl().GetItem(r, 2).GetText().strip()
-            if teacher and fee:
-                class_map[class_name] = (teacher, Decimal(fee))
+            class_map[class_name] = (teacher, Decimal(fee))
         return class_map
 
     def validate_fee_schedule(self, families):
@@ -167,7 +172,7 @@ class FeeSchedulePanel(ListSorterPanel):
                 for class_name in student[Column.CLASSES]:
                     try:
                         teacher, fee = class_map[class_name]
-                        if not teacher or not fee or not type(fee) == Decimal:
+                        if (fee and not teacher) or not type(fee) == Decimal:
                             missing_fees.add(class_name)
                     except KeyError:
                         missing_fees.add(class_name)

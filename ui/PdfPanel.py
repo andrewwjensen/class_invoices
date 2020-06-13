@@ -26,7 +26,7 @@ def confirm_send_email(sending_drafts, families):
     caption = 'Confirm'
     if sending_drafts:
         msg = f'{num_families} email drafts to be sent to {num_addrs} email addresses will be created' \
-            f' in the Drafts folder of your Gmail account. You may preview them before sending.'
+              f' in the Drafts folder of your Gmail account. You may preview them before sending.'
         ok_label = 'Create Drafts'
     else:
         msg = f'{num_families} emails will be sent to {num_addrs} email addresses.'
@@ -67,7 +67,7 @@ class PdfPanel(wx.Panel):
         self.row_to_family_id = {}
 
         self.error_msg = None
-        self.draft_ids = []
+        self.drafts = []
 
         # Used to keep track if it changed, because the IsModified() method doesn't seem
         # work properly with multi-line TextCtrl
@@ -153,7 +153,10 @@ class PdfPanel(wx.Panel):
             pdf_buffer = MyBytesIO()
             families = self.get_selected_families()
             if families:
-                self.fee_provider.validate_fee_schedule(families)
+                try:
+                    self.fee_provider.validate_fee_schedule(families)
+                except Exception as e:
+                    self.error_msg = f'Warning: {e}'
                 class_map = self.fee_provider.generate_class_map()
                 term = self.text_ctrl_term.GetValue()
                 generate_master(families, class_map, term, pdf_buffer)
@@ -161,6 +164,7 @@ class PdfPanel(wx.Panel):
         except RuntimeError as e:
             logger.exception('error generating master PDF')
             self.error_msg = f'error generating master PDF: {e}'
+        self.check_error()
 
     def on_generate_invoices(self, event=None):
         """
@@ -187,6 +191,7 @@ class PdfPanel(wx.Panel):
         except RuntimeError as e:
             logger.exception('error generating invoices')
             self.error_msg = f'error generating invoices: {e}'
+        self.check_error()
 
     def open_pdf_viewer(self, pdf_buffer):
         """Display the given pdf_buffer in a new PDF viewer window.
@@ -206,7 +211,7 @@ class PdfPanel(wx.Panel):
 
         height = wx.DisplaySize()[1] - 70
         width = int(height * 8 / 10)
-        logger.warning(f'size = {height} x {width}')
+        logger.debug(f'size = {height} x {width}')
         pdf_viewer = PdfViewer(None, size=(width, height))
         self.pdf_viewers.add(pdf_viewer)
         logger.debug(f'loading PDF {path}', extra={'pdf_filename': path})
@@ -262,8 +267,9 @@ class PdfPanel(wx.Panel):
             if confirm_send_email(sending_drafts, families):
                 if sending_drafts:
                     self.create_drafts(families, subject, body)
-                    if not self.error_msg:
-                        self.send_drafts_dialog(self.draft_ids)
+                    self.check_error()
+                    if self.drafts:
+                        self.send_drafts_dialog(self.drafts)
                 else:
                     self.send_email(families, subject, body)
         dlg.Destroy()
@@ -275,6 +281,7 @@ class PdfPanel(wx.Panel):
                     'Emailing invoice for family: ',
             maximum=len(families),
             style=PROGRESS_STYLE)
+        errors = []
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
@@ -287,8 +294,10 @@ class PdfPanel(wx.Panel):
                               class_map,
                               note,
                               term,
-                              progress)
+                              progress,
+                              errors=errors)
             progress.Update(progress.GetRange())  # Make sure progress dialog closes
+            self.error_msg = '\n'.join(errors)
         except KeyError as e:
             self.error_msg = f'Missing teacher or fee for class while sending email: {e.args[0]}'
 
@@ -307,21 +316,24 @@ class PdfPanel(wx.Panel):
                     'Creating draft email for family: ',
             maximum=len(families),
             style=PROGRESS_STYLE)
-        self.draft_ids = []
+        self.drafts = []
+        errors = []
         try:
             self.fee_provider.validate_fee_schedule(families)
             note = self.text_ctrl_pdf_note.GetValue()
             term = self.text_ctrl_term.GetValue()
             class_map = self.fee_provider.generate_class_map()
-            self.draft_ids = gmail.create_drafts(subject,
-                                                 body,
-                                                 'bcc',
-                                                 families,
-                                                 class_map,
-                                                 note,
-                                                 term,
-                                                 progress)
+            self.drafts = gmail.create_drafts(subject,
+                                              body,
+                                              'bcc',
+                                              families,
+                                              class_map,
+                                              note,
+                                              term,
+                                              progress,
+                                              errors=errors)
             progress.Update(progress.GetRange())  # Make sure progress dialog closes
+            self.error_msg = '\n'.join(errors)
         except KeyError as e:
             self.error_msg = 'Missing teacher or fee for class while creating drafts: ' + e.args[0]
         except Exception as e:
@@ -332,21 +344,21 @@ class PdfPanel(wx.Panel):
     # Sending drafts methods
     ################################################################################################
 
-    def send_drafts(self, draft_ids):
+    def send_drafts(self, drafts):
         progress = wx.ProgressDialog(
             title='Send Draft Emails',
             message='Please wait...\n\n'
                     'Sending draft',
-            maximum=len(draft_ids),
+            maximum=len(drafts),
             style=PROGRESS_STYLE)
         try:
-            gmail.send_drafts(draft_ids, progress)
+            gmail.send_drafts(drafts, progress)
             progress.Update(progress.GetRange())  # Make sure progress dialog closes
         except Exception as e:
             self.error_msg = f'Error while sending drafts: {e}'
             logger.exception('could not send drafts')
 
-    def send_drafts_dialog(self, draft_ids):
+    def send_drafts_dialog(self, drafts):
         caption = 'Send Drafts?'
         msg = 'Check your Gmail drafts folder to verify the messages are correct\n\n' \
               'You may then send them manually through Gmail, or send them all at once here.'
@@ -355,13 +367,13 @@ class PdfPanel(wx.Panel):
                                caption=caption,
                                style=wx.OK | wx.CANCEL)
         plural = 's'
-        if len(draft_ids) == 1:
+        if len(drafts) == 1:
             plural = ''
         dlg.SetOKCancelLabels(ok='Send Manually Later',
-                              cancel=f'Send {len(draft_ids)} Draft{plural} Now')
+                              cancel=f'Send {len(drafts)} Draft{plural} Now')
         response = dlg.ShowModal()
         if response == wx.ID_CANCEL:
-            self.send_drafts(draft_ids)
+            self.send_drafts(drafts)
 
     ################################################################################################
     # Other methods

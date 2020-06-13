@@ -96,6 +96,20 @@ def load_families(path):
     return families
 
 
+def export_family_as_csv_rows(family):
+    return {k.value: v for k, v in family.items()}
+
+
+def export_families(path, families):
+    with open(path, 'w') as f:
+        writer = csv.DictWriter(f, [c.value for c in Column])
+        writer.writeheader()
+        for family_id, family in families.items():
+            for person in family['parents'] + family['students']:
+                person[Column.CLASSES] = ','.join(person[Column.CLASSES])
+                writer.writerow(export_family_as_csv_rows(person))
+
+
 def parse_person(row, column_idx_to_name, families):
     person = create_person(row, column_idx_to_name)
     add_to_family(person, families)

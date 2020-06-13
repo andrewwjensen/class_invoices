@@ -36,7 +36,11 @@ def parse_phone(in_str):
 
 def validate_currency(fee_str):
     if fee_str is not None:
-        m = re.match(r'^ *\$? *(\d+(?:[.]\d{2})?) *$', fee_str)
-        if m:
-            return Decimal(m.group(1))
-    return None
+        fee_str = fee_str.strip()
+        if fee_str:
+            m = re.match(r'^ *\$? *(\d+(?:[.]\d{2})?) *$', fee_str)
+            if m:
+                return Decimal(m.group(1))
+            else:
+                return None
+    return Decimal(0.0)

@@ -8,7 +8,7 @@ PUBLISHER_NAME = 'AndyJensen'
 APP_AUTHOR = 'Andrew W. Jensen'
 APP_NAME = 'ClassInvoices'
 APP_DESCRIPTION = 'Create invoices for classes from registration info.'
-APP_VERSION = '1.3.0'
+APP_VERSION = '1.3.1'
 # Must be a 4-tuple as a string for Windows packaging (e.g. '(1, 2, 1, 0)'):
 APP_VERSION_TUPLE = str(tuple([int(v) for v in APP_VERSION.split('.')] + [0]))
 APP_ID = 'com.thejensenfam.classinvoices'

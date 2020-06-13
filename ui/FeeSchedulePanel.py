@@ -53,7 +53,7 @@ class FeeSchedulePanel(ListSorterPanel):
     def clear_is_modified(self):
         self.list_ctrl.clear_is_modified()
 
-    def on_import(self, event=None):
+    def on_import(self, _event=None):
         dirname = ''
         file_dialog = wx.FileDialog(parent=None,
                                     message='Choose a fee schedule CSV file',
@@ -73,7 +73,7 @@ class FeeSchedulePanel(ListSorterPanel):
         file_dialog.Destroy()
         self.check_error()
 
-    def on_export(self, event=None):
+    def on_export(self, _event=None):
         dirname = ''
         file_dialog = wx.FileDialog(parent=None,
                                     message='Export fee schedule to CSV',

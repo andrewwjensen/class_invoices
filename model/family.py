@@ -106,6 +106,8 @@ def export_families(path, families):
         writer.writeheader()
         for family_id, family in families.items():
             for person in family['parents'] + family['students']:
+                # Make a copy, as we will be modifying the classes key for proper display in CSV
+                person = dict(person)
                 person[Column.CLASSES] = ','.join(person[Column.CLASSES])
                 writer.writerow(export_family_as_csv_rows(person))
 

@@ -78,7 +78,7 @@ class FeeSchedulePanel(ListSorterPanel):
         file_dialog = wx.FileDialog(parent=None,
                                     message='Export fee schedule to CSV',
                                     defaultDir=dirname,
-                                    defaultFile='',
+                                    defaultFile='Fee Schedule (Exported).csv',
                                     wildcard='*.csv',
                                     style=wx.FD_SAVE)
         if file_dialog.ShowModal() == wx.ID_OK:

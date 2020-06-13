@@ -133,12 +133,11 @@ class EnrollmentPanel(wx.Panel):
 
     def get_export_path(self):
         path = None
-        msg = 'Export Enrollment CSV'
         suffix = '.csv'
         file_dialog = wx.FileDialog(parent=self,
-                                    message=msg,
+                                    message='Export enrollment list to CSV',
                                     defaultDir='',
-                                    defaultFile='export.csv',
+                                    defaultFile='Enrollment List (Exported).csv',
                                     wildcard=f'*{suffix}',
                                     style=wx.FD_SAVE)
         if file_dialog.ShowModal() == wx.ID_OK:

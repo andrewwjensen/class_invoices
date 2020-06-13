@@ -85,7 +85,7 @@ class FeeSchedulePanel(ListSorterPanel):
             filename = file_dialog.GetFilename()
             dirname = file_dialog.GetDirectory()
             try:
-                with open(os.path.join(dirname, filename), 'w') as f:
+                with open(os.path.join(dirname, filename), 'w', newline='') as f:
                     csv_writer = csv.writer(f)
                     csv_writer.writerow(['Class', 'Teacher', 'Fee'])
                     for r in range(self.GetListCtrl().GetItemCount()):

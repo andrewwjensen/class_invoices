@@ -101,7 +101,7 @@ def export_family_as_csv_rows(family):
 
 
 def export_families(path, families):
-    with open(path, 'w') as f:
+    with open(path, 'w', newline='') as f:
         writer = csv.DictWriter(f, [c.value for c in Column])
         writer.writeheader()
         for family_id, family in families.items():
